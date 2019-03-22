@@ -36,7 +36,7 @@ Here we set the initial values for simulation of each type of infection rate beh
 logi_setup = matrix(
   c("Constant", 0.2,
   "Increasing", 0.05,
-  "Decreasing", 0.5,
+  "Decreasing", 0.3,
   "Sinusoidal", 0.2,
   "Random", 0.2),
   nrow=5,ncol=,byrow = TRUE) 
@@ -52,18 +52,18 @@ for(k in seq(1,10, by = 2)){
 logistic_all = data.frame()
 for( i in 1:5){
   set.seed(1)
-data = logistic(N= 60, dt=0.5, y0=0.001, r=as.numeric(logi_setup[i,2]), sd = 0.1, inf = i)
+data = logistic(N= 60, dt=0.5, y0=0.001, r=as.numeric(logi_setup[i,2]), sd = 0.25, inf = i)
 data = data %>% 
   filter(time %in% c(seq(0,60, by = k)))
 data_logi = data.frame(infection_type = as.factor(logi_setup[i,1]),
                    SIR_filter(model = 1,
                    guess_r = as.numeric(logi_setup[i,2]),
-                   Nparti=1000,
+                   Nparti=100,
                    measures = data$Randon_intensity,
                    time = data$time,
-                   sd_meas = 0.2,
-                   sd_par = 0.20,
-                   sd_model = 0.05),
+                   sd_meas = 0.25,
+                   sd_par = 0.15,
+                   sd_model = 0.005),
                    y = data$Randon_intensity,
                    inf_rate = data$inf_rate)  
 
@@ -166,7 +166,7 @@ for(k in seq(1,10, by = 2)){
 gompertz_all = data.frame()
 for(i in 1:5){
 set.seed(3)
-data = gompertz(N= 60, dt=0.5, y0=0.001,r=as.numeric(gompi_setup[i,2]), sd = 0.1, inf = i)
+data = gompertz(N= 60, dt=0.5, y0=0.001,r=as.numeric(gompi_setup[i,2]), sd = 0.25, inf = i)
 data = data %>% 
   filter(time %in% c(seq(1,60, by = k)))
 # data$time = data$time[seq(1,length(data$time), by =8)]
@@ -174,12 +174,12 @@ data = data %>%
 data_gompi = data.frame(infection_type = as.factor(gompi_setup[i,1]),
                    SIR_filter(model = 2,
                    guess_r = as.numeric(gompi_setup[i,2]),
-                   Nparti=1000,
+                   Nparti=100,
                    measures = data$Randon_intensity,
                    time = data$time,
-                   sd_meas = 0.2,
+                   sd_meas = 0.25,
                    sd_par = 0.15,
-                   sd_model = 0.05),
+                   sd_model = 0.005),
                    y = data$Randon_intensity,
                    inf_rate = data$inf_rate)  
 
@@ -248,7 +248,7 @@ c = gompertz_all2 %>%
 
 d = gompertz_all2 %>% 
   group_by(infection_type,time_interval) %>%
-  filter(y < 0.99) %>% 
+  filter(y < 1) %>% 
   mutate(rmsi = (inf_rate - sinti)^2) %>% 
   summarise(RMS.1 = sqrt((1/(length(inf_rate)))*sum(rmsi, na.rm = T)),
             CCC.1 = CCC(inf_rate ,sinti)$rho.c$est,
@@ -385,12 +385,14 @@ acuracy_calc = calculated_r%>%
             )
 ```
 
-
+ bind data.frames of both models 
 ```{r}
 acuracy_est =bind_rows(acuracy_logi,acuracy_gompi) 
 
 ```
-
+ 
+# Visualization 
+## CCC
 ```{r fig.width=10}
 ggplot()+
   geom_ribbon(data =acuracy_est, aes(time_interval,
@@ -416,9 +418,22 @@ ggplot()+
   
 ```
 
+## RMS 
 
+```{r}
+ggplot()+
+  geom_line(data =acuracy_calc, aes(time_interval, RMS, color = "calculated"),
+            size = 1.2)+
+  geom_line(data =acuracy_est, aes(time_interval, RMS, color = "estimated"),
+            size = 1.2)+
+  scale_color_colorblind()+
+  scale_fill_colorblind()+
+  guides(fill= guide_legend("none"))+
+  facet_grid(model~infection_type)+
+  labs(x = "Time interval", y = "Lin's CCC")
+```
 
-## Actual epidemics
+# Calculated for actual epidemics 
 
 
 ```{r}

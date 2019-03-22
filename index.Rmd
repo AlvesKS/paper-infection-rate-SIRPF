@@ -2,7 +2,7 @@
 
   In this website are described the codes used to reproduce the analysis and results of the research conducted by a master student Kaique dos S. Alves under the supervision of Prof. Emerson Del Ponte, Universidade Federal de Vicosa, MG, Brazil.
 
-  The main objective of the reseach was to estimate the time virying infection rate of simulated and actual plant disease epidemics using a data assimilation method called Particle filter..
+  The main objective of the reseach was to estimate the time virying infection rate of simulated and actual plant disease epidemics using a data assimilation method called Particle filter. 
 
 ## Citation
 

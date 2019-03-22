@@ -26,3 +26,7 @@ navbar:
   - text: Code analysis 
     icon: fa fa-file-code-o
     href: optimized_code.html
+    
+    right:
+    - icon: fa-github-square 
+      href: https://github.com/AlvesKS/infection_rate_PF

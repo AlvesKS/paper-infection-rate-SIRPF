@@ -64,7 +64,8 @@ SIR_filter = function(model, Nparti, measures, time,  guess_r, sd_meas, sd_par, 
       
       Sold <- Snew[k] + rnorm(1)*stdmodel
       
-      # Rondomic particle for "Exposed hosts":
+      # Rondomic particle for "parameter":
+      
       rr <- aa + (bb - aa) * runif(1)
       sintold <- sinti[k] + rr * stdmodeldif 
       
@@ -73,6 +74,7 @@ SIR_filter = function(model, Nparti, measures, time,  guess_r, sd_meas, sd_par, 
       steps <- seq(time[k], time[k + 1], by = dt)
       parms <- list(r = sintold)
         
+      
          # Logistic
          if(model == 1){
            ode_logi <- ode(InitCond, steps, logi_fun, parms)  
