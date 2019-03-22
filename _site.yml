@@ -1,0 +1,28 @@
+name: Infection-rate
+output_dir: docs
+output:
+  html_document:
+    code_download: true
+    css: my-style.css
+    theme: cosmo 
+    df_print: paged
+    highlight: default
+    include:
+      after_body: footer.md
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: no
+    lib_dir: site_libs
+    self_contained: no
+bibliography: crossref.bib
+csl: chicago-author-date.csl
+navbar:
+  title: Time varying infection rate
+  left:
+  - text: About
+    icon: fa fa-home
+    href: index.html
+  - text: Code analysis 
+    icon: fa fa-file-code-o
+    href: optimized_code.html
