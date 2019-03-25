@@ -58,7 +58,7 @@ data = data %>%
 data_logi = data.frame(infection_type = as.factor(logi_setup[i,1]),
                    SIR_filter(model = 1,
                    guess_r = as.numeric(logi_setup[i,2]),
-                   Nparti=100,
+                   Nparti=1000,
                    measures = data$Randon_intensity,
                    time = data$time,
                    sd_meas = 0.25,
@@ -174,7 +174,7 @@ data = data %>%
 data_gompi = data.frame(infection_type = as.factor(gompi_setup[i,1]),
                    SIR_filter(model = 2,
                    guess_r = as.numeric(gompi_setup[i,2]),
-                   Nparti=100,
+                   Nparti=1000,
                    measures = data$Randon_intensity,
                    time = data$time,
                    sd_meas = 0.25,
@@ -415,7 +415,7 @@ ggplot()+
   facet_grid(model~infection_type)+
   labs(x = "Time interval", y = "Lin's CCC")
   
-  
+ ggsave("figs/CCC.png", dpi=300, height = 6, width = 10) 
 ```
 
 ## RMS 
@@ -431,6 +431,8 @@ ggplot()+
   guides(fill= guide_legend("none"))+
   facet_grid(model~infection_type)+
   labs(x = "Time interval", y = "Lin's CCC")
+
+ggsave("figs/RMS.png", dpi=300, height = 6, width = 10)
 ```
 
 # Calculated for actual epidemics 
