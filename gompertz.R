@@ -40,7 +40,7 @@ gompertz = function(N=10,dt=1, y0=0.01, r, sd=1, inf = 1){
   }
   
   for(i in 1:length(time)){
-    if(y[i] > 1){y[i] = 1}
+    if(y[i] > .999){y[i] = .999}
     w[i] = rnorm(1, y[i], sd = abs(sd*y[i]*(1-y[i])))
     if(w[i] > 1){
       w[i]=1

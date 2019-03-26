@@ -1,6 +1,7 @@
 % Document analysis
 
 # Packages
+Load the packages needed to the analysis
 
 ```{r message=FALSE, warning=FALSE}
 library(tidyverse)
@@ -13,7 +14,7 @@ library(DescTools)
 library(deSolve)
 ```
 
-# `ggplot2` standard theme
+# `ggplot2` global theme
 
 ```{r}
 theme_set(theme_light())
@@ -46,19 +47,23 @@ logi_setup = matrix(
 Run the particle filter for each type of infection rate and for each time interval
 
 ```{r warning=FALSE}
+noise = c(0.1, 0.25)
+
+logistic_all3 = data.frame()
+for(j in 1:2){
 logistic_all2 = data.frame()
 for(k in seq(1,10, by = 2)){
 
 logistic_all = data.frame()
 for( i in 1:5){
-  set.seed(1)
-data = logistic(N= 60, dt=0.5, y0=0.001, r=as.numeric(logi_setup[i,2]), sd = 0.25, inf = i)
+  set.seed(5)
+data = logistic(N= 60, dt=0.5, y0=0.001, r=as.numeric(logi_setup[i,2]), sd = noise[j], inf = i)
 data = data %>% 
   filter(time %in% c(seq(0,60, by = k)))
 data_logi = data.frame(infection_type = as.factor(logi_setup[i,1]),
                    SIR_filter(model = 1,
                    guess_r = as.numeric(logi_setup[i,2]),
-                   Nparti=1000,
+                   Nparti=100,
                    measures = data$Randon_intensity,
                    time = data$time,
                    sd_meas = 0.25,
@@ -76,69 +81,74 @@ logistic_all = logistic_all %>%
   
 logistic_all2 = logistic_all2 %>% 
   bind_rows(logistic_all) 
-}  
-
+}
+  logistic_all2 = logistic_all2 %>% 
+    mutate(noise = noise[j])
+  
+ logistic_all3 =  logistic_all3 %>% 
+   bind_rows(logistic_all2) 
+   
+}
 ```
 
-```{r fig.height=20, fig.width=10}
-plot_grid(
-logistic_all2 %>% 
+```{r fig.height=10, fig.width=10}
+
+logistic_all3 %>% 
   ggplot()+
   geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
   geom_line(aes(time,inf_rate, color = infection_type),
             size = 2)+
-  geom_point(aes(time,sinti),
-             size = 2, 
-             alpha = 0.3)+
-  facet_grid(time_interval~infection_type)+
+  geom_point(aes(time,sinti, shape = as.factor(noise)),
+             size = 2)+
+  facet_grid(time_interval+noise~infection_type)+
   scale_fill_manual(values = "gray")+
   scale_color_colorblind()+
   labs(x = "Time",
        y = "Apparent infection rate")+
   theme(legend.position = "none")+
-  scale_y_continuous(breaks = seq(-2,2, 0.2)),
+  scale_y_continuous(breaks = seq(-2,2, 0.2))
 
-logistic_all2 %>% 
+
+ # ggsave("figs/logistic.png", dpi=300, height = 6, width = 10)
+```
+
+```{r fig.height=10, fig.width=10}
+logistic_all3 %>% 
   ggplot()+
   geom_ribbon(aes(time, ymin = (ubdsir), ymax = (lbdsir), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
   geom_line(aes(time,y, color = infection_type),
             size = 2)+
-  geom_point(aes(time,xestsir),
-             size = 2, 
-             alpha = 0.3)+
-  facet_grid(time_interval~infection_type)+
+  geom_point(aes(time,xestsir, shape = as.factor(noise)),
+             size = 2)+
+  facet_grid(time_interval+noise~infection_type)+
   scale_fill_manual(values = "gray")+
   scale_color_colorblind()+
   labs(x = "Time",
        y = "Intensity")+
   theme(legend.position = "none")+
-  scale_y_continuous(breaks = seq(0,1, 0.2)),
-nrow = 2
-)
- # ggsave("figs/logistic.png", dpi=300, height = 6, width = 10)
+  scale_y_continuous(breaks = seq(0,1, 0.2))
+
 ```
+
 
 ## Acuracy
 
 ```{r warning=FALSE}
-a = logistic_all2 %>% 
-  group_by(infection_type,time_interval) %>%
-  mutate(rmsi = (inf_rate - sinti)^2) %>% 
+a = logistic_all3 %>% 
+  group_by(infection_type,time_interval, noise) %>%
+  mutate(rmsi = (inf_rate - sinti)^2,
+         maei = abs(inf_rate - sinti)) %>% 
   summarise(RMS = sqrt((1/(length(inf_rate)))*sum(rmsi, na.rm = T)),
-            CCC = CCC(inf_rate ,sinti)$rho.c$est,
-            lwr.ci = CCC(inf_rate ,sinti)$rho.c$lwr.ci,
-            upr.ci = CCC(inf_rate ,sinti)$rho.c$upr.ci) %>% 
+            MAE = mean(maei)) %>% 
   mutate(model = "Logistic")
 
-b = logistic_all2 %>% 
-  group_by(infection_type,time_interval) %>%
-  filter(y < 0.99) %>% 
-  mutate(rmsi = (inf_rate - sinti)^2) %>% 
+b = logistic_all3 %>% 
+  group_by(infection_type,time_interval,noise) %>%
+  filter(y < 1) %>% 
+  mutate(rmsi = (inf_rate - sinti)^2,
+         maei = abs(inf_rate - sinti)) %>% 
   summarise(RMS.1 = sqrt((1/(length(inf_rate)))*sum(rmsi, na.rm = T)),
-            CCC.1 = CCC(inf_rate ,sinti)$rho.c$est,
-            lwr.ci.1 = CCC(inf_rate ,sinti)$rho.c$lwr.ci,
-            upr.ci.1 = CCC(inf_rate ,sinti)$rho.c$upr.ci) %>% 
-  mutate(model = "Logistic")
+            MAE.1 = mean(maei))
 acuracy_logi = left_join(a, b)
 
 
@@ -160,21 +170,24 @@ gompi_setup = matrix(
 
 
 ```{r warning=FALSE}
+noise = c(0.1, 0.25)
+
+gompertz_all3 = data.frame()
+for(j in 1:2){
 gompertz_all2 = data.frame()
 for(k in seq(1,10, by = 2)){
   
 gompertz_all = data.frame()
 for(i in 1:5){
-set.seed(3)
-data = gompertz(N= 60, dt=0.5, y0=0.001,r=as.numeric(gompi_setup[i,2]), sd = 0.25, inf = i)
+ set.seed(5)
+data = gompertz(N= 60, dt=0.5, y0=0.001,r=as.numeric(gompi_setup[i,2]), sd = noise[j], inf = i)
 data = data %>% 
   filter(time %in% c(seq(1,60, by = k)))
-# data$time = data$time[seq(1,length(data$time), by =8)]
 
 data_gompi = data.frame(infection_type = as.factor(gompi_setup[i,1]),
                    SIR_filter(model = 2,
                    guess_r = as.numeric(gompi_setup[i,2]),
-                   Nparti=1000,
+                   Nparti=100,
                    measures = data$Randon_intensity,
                    time = data$time,
                    sd_meas = 0.25,
@@ -194,71 +207,163 @@ gompertz_all = gompertz_all %>%
 gompertz_all2 = gompertz_all2 %>% 
   bind_rows(gompertz_all) 
 }  
+
+  gompertz_all2 = gompertz_all2 %>% 
+    mutate(noise = noise[j])
+  
+ gompertz_all3 =  gompertz_all3 %>% 
+   bind_rows(gompertz_all2) 
+   
+}
 ```
 
-```{r fig.height=20, fig.width=10}
-plot_grid(
-gompertz_all2 %>% 
+```{r fig.height=10, fig.width=10}
+
+gompertz_all3 %>% 
   ggplot()+
   geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
   geom_line(aes(time,inf_rate, color = infection_type),
             size = 2)+
-  geom_point(aes(time,sinti),
-             size = 2, 
-             alpha = 0.3)+
-  facet_grid(time_interval~infection_type)+
+  geom_point(aes(time,sinti, shape =  as.factor(noise)),
+             size = 2)+
+  facet_grid(time_interval+noise~infection_type)+
   scale_fill_manual(values = "gray")+
   scale_color_colorblind()+
   labs(x = "Time",
        y = "Apparent infection rate")+
   theme(legend.position = "none")+
-  scale_y_continuous(breaks = seq(-2,2, 0.2)),
-
-gompertz_all2 %>% 
+  scale_y_continuous(breaks = seq(-2,2, 0.2))
+# ggsave("figs/gompertz.png", dpi=300, height = 6, width = 10)
+```
+```{r fig.height=10, fig.width=10}
+gompertz_all3 %>% 
   ggplot()+
   geom_ribbon(aes(time, ymin = (ubdsir), ymax = (lbdsir), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
   geom_line(aes(time,y, color = infection_type),
             size = 2)+
-  geom_point(aes(time,xestsir),
+  geom_point(aes(time,xestsir, shape = as.factor(noise)),
              size = 2, 
              alpha = 0.3)+
-  facet_grid(time_interval~infection_type)+
+  facet_grid(time_interval+noise~infection_type)+
   scale_fill_manual(values = "gray")+
   scale_color_colorblind()+
   labs(x = "Time",
        y = "Intensity")+
   theme(legend.position = "none")+
-  scale_y_continuous(breaks = seq(-2,2, 0.2)),
-nrow = 2
-)
-# ggsave("figs/gompertz.png", dpi=300, height = 6, width = 10)
+  scale_y_continuous(breaks = seq(-2,2, 0.2))
 ```
 
 ## Acuracy
 
 ```{r warning=FALSE}
-c = gompertz_all2 %>% 
-  group_by(infection_type,time_interval) %>%
-  mutate(rmsi = (inf_rate - sinti)^2) %>% 
+c = gompertz_all3 %>% 
+  group_by(infection_type,time_interval, noise) %>%
+  mutate(rmsi = (inf_rate - sinti)^2,
+         maei = abs(inf_rate - sinti)) %>% 
   summarise(RMS = sqrt((1/(length(inf_rate)))*sum(rmsi, na.rm = T)),
-            CCC = CCC(inf_rate ,sinti)$rho.c$est,
-            lwr.ci = CCC(inf_rate ,sinti)$rho.c$lwr.ci,
-            upr.ci = CCC(inf_rate ,sinti)$rho.c$upr.ci) %>% 
+            MAE = mean(maei)) %>% 
   mutate(model = "Gompertz")
 
-d = gompertz_all2 %>% 
-  group_by(infection_type,time_interval) %>%
+d = gompertz_all3 %>% 
+  group_by(infection_type,time_interval,noise) %>%
   filter(y < 1) %>% 
-  mutate(rmsi = (inf_rate - sinti)^2) %>% 
+  mutate(rmsi = (inf_rate - sinti)^2,
+         maei = abs(inf_rate - sinti)) %>% 
   summarise(RMS.1 = sqrt((1/(length(inf_rate)))*sum(rmsi, na.rm = T)),
-            CCC.1 = CCC(inf_rate ,sinti)$rho.c$est,
-            lwr.ci.1 = CCC(inf_rate ,sinti)$rho.c$lwr.ci,
-            upr.ci.1 = CCC(inf_rate ,sinti)$rho.c$upr.ci)  %>% 
+            MAE.1 = mean(maei))  %>% 
   mutate(model = "Gompertz")
 
 acuracy_gompi = left_join(c, d)
  
 ```
+
+
+# Calculate the Apparent infection rate
+
+## Simulated epidemics
+```{r}
+calc_r_log = logistic_all3 %>%
+  group_by(infection_type,time_interval,noise) %>% 
+  mutate(r_calc = (log(y/(1-y)) - log((lag(y,1)/(1-(lag(y,1))))))/(time - lag(time,1))) %>% 
+  mutate(model = "Logistic")
+
+calc_r_gomp =gompertz_all3 %>% 
+  group_by(infection_type,time_interval,noise) %>% 
+  mutate(r_calc = (-log(-log(y))--log(-log(lag(y,1))))/(time - lag(time,1))) %>%
+  mutate(model = "Gompertz")
+
+calculated_r = bind_rows(calc_r_log,calc_r_gomp)
+calculated_r$model = factor(calculated_r$model, levels=c("Logistic","Gompertz"), labels=c("Logistic","Gompertz")) 
+```
+
+
+
+```{r fig.height=10, fig.width=10}
+
+calculated_r %>%
+  ggplot()+
+  geom_line(aes(time,inf_rate, color = infection_type),
+            size = 2)+
+  # geom_point(aes(time,sinti),
+  #            size = 2, 
+  #            alpha = 0.4,
+  #            shape = 21)+
+  geom_point(aes(time,r_calc),
+             size = 2,
+             alpha = 1)+
+  facet_grid(time_interval+model~infection_type)+
+  scale_fill_viridis()+
+  scale_color_colorblind()+
+  labs(x = "Time",
+       y = "Apparent infection rate")+
+  guides(color= guide_legend("none"))+
+  scale_y_continuous(breaks = seq(-3,3, 0.2))+
+  xlim(0,60)
+
+  
+# ggsave("figs/simulated_r_calc.png", dpi=300, height = 4, width = 6)
+
+```
+## Acuracy
+
+```{r warning=FALSE}
+acuracy_calc = calculated_r%>% 
+  filter(r_calc != is.na(r_calc)) %>% 
+  group_by(model,infection_type, time_interval,noise) %>% 
+  mutate(rmsi = (inf_rate - r_calc)^2,
+         maei = abs(inf_rate - r_calc)) %>% 
+  summarise(RMS = sqrt((1/(length(inf_rate)))*sum(rmsi, na.rm = T)),
+            CCC = CCC(inf_rate ,r_calc)$rho.c$est,
+            MAE = mean(maei))
+```
+
+ bind data.frames of both models 
+```{r}
+acuracy_est =bind_rows(acuracy_logi,acuracy_gompi) 
+
+```
+ 
+# Visualization 
+
+## RMS 
+ plotting the RMS 
+
+```{r}
+
+ggplot()+
+  geom_line(data =acuracy_calc, aes(time_interval, RMS, color = "Calculated", linetype = as.factor(noise)),
+            size = 1.2)+
+  geom_line(data =acuracy_est, aes(time_interval, RMS, color = "Estimated", linetype = as.factor(noise)),
+            size = 1.2)+
+  scale_color_colorblind("AIR")+
+  scale_fill_colorblind()+
+  facet_grid(model~infection_type)+
+  labs(x = "Time interval", y = "RMS", linetype  = "Noise")+
+  theme(legend.position = "bottom")
+
+ggsave("figs/RMS.png", dpi=300, height = 6, width = 10)
+```
+
 
 # Actual epidemics
 
@@ -267,23 +372,23 @@ Load the data
 real = read_xlsx("curves_madden_book.xlsx")
 ```
 
-
+## Estimated AIR
 Run the Particle filter
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 actual_all = data.frame()
 real_matrix = as.matrix(real)
 colnames(real_matrix) = NULL
 for(i in 1:3){
   data_actual = data.frame(curve = as.factor(i),
                    SIR_filter(model = 1,
-                   guess_r = 0.1,
+                   guess_r = 0.2,
                    Nparti=100,
                    measures = real_matrix[,i+1],
                    time = real$time,
-                   sd_meas = 0.1,
-                   sd_par = 0.7,
-                   sd_model = 0.1,
+                   sd_meas = 0.2,
+                   sd_par = .5,
+                   sd_model = 0.05,
                    dt= 7),
                    y = real_matrix[,i+1])  
 
@@ -325,117 +430,8 @@ nrow = 2)
 ```
 
 
-# Using Madden et al. Method to Calc the Apparent infection rate
 
-## Simulated epidemics
-```{r}
-calc_r_log = logistic_all2 %>%
-  group_by(infection_type,time_interval) %>% 
-  mutate(r_calc = (log(y/(1-y)) - log((lag(y,1)/(1-(lag(y,1))))))/(time - lag(time,1))) %>% 
-  mutate(model = "Logistic")
-
-calc_r_gomp =gompertz_all2 %>% 
-  group_by(infection_type,time_interval) %>% 
-  mutate(r_calc = (-log(-log(y))--log(-log(lag(y,1))))/(time - lag(time,1))) %>%
-  mutate(model = "Gompertz")
-
-calculated_r = bind_rows(calc_r_log,calc_r_gomp)
-calculated_r$model = factor(calculated_r$model, levels=c("Logistic","Gompertz"), labels=c("Logistic","Gompertz")) 
-```
-
-
-
-```{r fig.height=20, fig.width=10}
-
-calculated_r %>%
-  ggplot()+
-  geom_line(aes(time,inf_rate, color = infection_type),
-            size = 2)+
-  # geom_point(aes(time,sinti),
-  #            size = 2, 
-  #            alpha = 0.4,
-  #            shape = 21)+
-  geom_point(aes(time,r_calc),
-             size = 2,
-             alpha = 1)+
-  facet_grid(model+time_interval~infection_type)+
-  scale_fill_viridis()+
-  scale_color_colorblind()+
-  labs(x = "Time",
-       y = "Apparent infection rate")+
-  guides(color= guide_legend("none"))+
-  scale_y_continuous(breaks = seq(-3,3, 0.2))+
-  xlim(0,60)
-
-  
-# ggsave("figs/simulated_r_calc.png", dpi=300, height = 4, width = 6)
-
-```
-## Acuracy
-
-```{r warning=FALSE}
-acuracy_calc = calculated_r%>% 
-  filter(r_calc != is.na(r_calc)) %>% 
-  group_by(model,infection_type, time_interval) %>% 
-  mutate(rmsi = (inf_rate - r_calc)^2) %>% 
-  summarise(RMS = sqrt((1/(length(inf_rate)))*sum(rmsi, na.rm = T)),
-            CCC = CCC(inf_rate ,r_calc)$rho.c$est,
-            lwr.ci = CCC(inf_rate ,r_calc)$rho.c$lwr.ci,
-            upr.ci = CCC(inf_rate ,r_calc)$rho.c$upr.ci
-            )
-```
-
- bind data.frames of both models 
-```{r}
-acuracy_est =bind_rows(acuracy_logi,acuracy_gompi) 
-
-```
- 
-# Visualization 
-## CCC
-```{r fig.width=10}
-ggplot()+
-  geom_ribbon(data =acuracy_est, aes(time_interval,
-                                     ymin = lwr.ci.1,
-                                     ymax = upr.ci.1,
-                                     fill = "Estimated r"),
-              alpha = 0.2 )+
-  geom_ribbon(data =acuracy_calc, aes(time_interval,
-                                     ymin = lwr.ci,
-                                     ymax = upr.ci,
-                                     fill = "Caculated r"),
-              alpha = 0.2 )+
-  geom_line(data =acuracy_calc, aes(time_interval, CCC, color = "calculated"),
-            size = 1.2)+
-  geom_line(data =acuracy_est, aes(time_interval, CCC.1, color = "estimated"),
-            size = 1.2)+
-  scale_color_colorblind()+
-  scale_fill_colorblind()+
-  guides(fill= guide_legend("none"))+
-  facet_grid(model~infection_type)+
-  labs(x = "Time interval", y = "Lin's CCC")
-  
- ggsave("figs/CCC.png", dpi=300, height = 6, width = 10) 
-```
-
-## RMS 
-
-```{r}
-ggplot()+
-  geom_line(data =acuracy_calc, aes(time_interval, RMS, color = "calculated"),
-            size = 1.2)+
-  geom_line(data =acuracy_est, aes(time_interval, RMS, color = "estimated"),
-            size = 1.2)+
-  scale_color_colorblind()+
-  scale_fill_colorblind()+
-  guides(fill= guide_legend("none"))+
-  facet_grid(model~infection_type)+
-  labs(x = "Time interval", y = "Lin's CCC")
-
-ggsave("figs/RMS.png", dpi=300, height = 6, width = 10)
-```
-
-# Calculated for actual epidemics 
+## Calculated AIR 
 
 
 ```{r}

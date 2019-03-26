@@ -22,12 +22,12 @@ SIR_filter = function(model, Nparti, measures, time,  guess_r, sd_meas, sd_par, 
   
   
   Smeas <- mean(realSmeas)
-  stdmeas <- 0.15 * Smeas
+  stdmeas <- 0.25 * Smeas*(1-Smeas)
   # Synthetic data error
-  stdmodel <- 0.01 * S
+  stdmodel <- 0.005 * S
   # Model error
-  stdmodeldif <- sd_par # <<<<<<<<<<<<<<<Change here to Ts[1]!!!!!!!
-  # "Exposed hosts"" error
+  stdmodeldif <- sd_par 
+  # "parameter"" error
   
   
   # Creating the weights' vector
@@ -38,7 +38,7 @@ SIR_filter = function(model, Nparti, measures, time,  guess_r, sd_meas, sd_par, 
   # Creating the others vectors for the SIR-PF algorithm
   
   sinti <- numeric(N)
-  sinti[1] <- r[1] # <<<<<<<<<<<<<<<<<<<<< change here to Ts[1]!!!!!!!!!
+  sinti[1] <- r[1] 
   Snew <- numeric(N)
   Snew[1] <- S
   xestsir <- numeric(N)
@@ -60,7 +60,7 @@ SIR_filter = function(model, Nparti, measures, time,  guess_r, sd_meas, sd_par, 
     
     for (l in loop2) { # loop to create the particles
       
-      # Rondomic particle for "infected hosts" :
+      # Rondomic particle for "intensity" :
       
       Sold <- Snew[k] + rnorm(1)*stdmodel
       
@@ -139,15 +139,15 @@ SIR_filter = function(model, Nparti, measures, time,  guess_r, sd_meas, sd_par, 
     
     # Error atualization
     
-    stdmodeldif <- sd_par #* sinti[k + 1]
-    stdmodel <- sd_model * Snew[k + 1]#*(1-Snew[k + 1])
-    stdmeas <- sd_meas * realSmeas[k + 1]
+    stdmodeldif <- sd_par 
+    stdmodel <- sd_model * Snew[k + 1]
+    stdmeas <- sd_meas * realSmeas[k + 1]*(1-realSmeas[k + 1])
   }
   
-  lbdsiro <- sinti - 2.576 *  stdsint#/sqrt(length(sinti))
-  ubdsiro <- sinti + 2.576 * stdsint#/sqrt(length(sinti))
-  lbdsir <- xestsir - 2.576 * stdsir#/sqrt(length(sinti))
-  ubdsir <- xestsir + 2.576 * stdsir#/sqrt(length(sinti))
+  lbdsiro <- sinti - 2.576 *  stdsint
+  ubdsiro <- sinti + 2.576 * stdsint
+  lbdsir <- xestsir - 2.576 * stdsir
+  ubdsir <- xestsir + 2.576 * stdsir
   
   final <- data.frame(time, realSmeas, xestsir, lbdsir, ubdsir, sinti, lbdsiro, ubdsiro)
   
