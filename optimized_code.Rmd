@@ -26,6 +26,7 @@ The fuction for simulation of the measures  and particle filter are called here.
 ```{r}
 source("logistic.R")
 source("gompertz.R")
+source("monomolecular.R")
 source("particle_filter2.R")
 ```
 
@@ -91,21 +92,22 @@ logistic_all2 = logistic_all2 %>%
 }
 ```
 
+## Visualization
 ```{r fig.height=10, fig.width=10}
 
 logistic_all3 %>% 
   ggplot()+
   geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
   geom_line(aes(time,inf_rate, color = infection_type),
-            size = 2)+
+            size = 1.2)+
   geom_point(aes(time,sinti, shape = as.factor(noise)),
              size = 2)+
-  facet_grid(time_interval+noise~infection_type)+
+  facet_grid(time_interval+noise~infection_type, scales = "free_y")+
   scale_fill_manual(values = "gray")+
   scale_color_colorblind()+
   labs(x = "Time",
        y = "Apparent infection rate")+
-  theme(legend.position = "none")+
+  theme(legend.position = "none",text = element_text(size = 14))+
   scale_y_continuous(breaks = seq(-2,2, 0.2))
 
 ggsave("figs/logistic_air.png", dpi=300, height = 10, width = 10)
@@ -116,15 +118,15 @@ logistic_all3 %>%
   ggplot()+
   geom_ribbon(aes(time, ymin = (ubdsir), ymax = (lbdsir), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
   geom_line(aes(time,y, color = infection_type),
-            size = 2)+
-  geom_point(aes(time,xestsir, shape = as.factor(noise)),
-             size = 2)+
+            size = 1.2)+
+  # geom_point(aes(time,xestsir, shape = as.factor(noise)),
+  #            size = 2, alpha = 0.2)+
   facet_grid(time_interval+noise~infection_type)+
   scale_fill_manual(values = "gray")+
   scale_color_colorblind()+
   labs(x = "Time",
        y = "Intensity")+
-  theme(legend.position = "none")+
+  theme(legend.position = "none",text = element_text(size = 14))+
   scale_y_continuous(breaks = seq(0,1, 0.2))
 ggsave("figs/logistic_curve.png", dpi=300, height = 10, width = 10)
 ```
@@ -216,16 +218,17 @@ gompertz_all2 = gompertz_all2 %>%
 }
 ```
 
+## Visualization
 ```{r fig.height=10, fig.width=10}
 
 gompertz_all3 %>% 
   ggplot()+
   geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
   geom_line(aes(time,inf_rate, color = infection_type),
-            size = 2)+
+            size = 1.2)+
   geom_point(aes(time,sinti, shape =  as.factor(noise)),
              size = 2)+
-  facet_grid(time_interval+noise~infection_type)+
+  facet_grid(time_interval+noise~infection_type, scales = "free_y")+
   scale_fill_manual(values = "gray")+
   scale_color_colorblind()+
   labs(x = "Time",
@@ -239,9 +242,9 @@ gompertz_all3 %>%
   ggplot()+
   geom_ribbon(aes(time, ymin = (ubdsir), ymax = (lbdsir), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
   geom_line(aes(time,y, color = infection_type),
-            size = 2)+
-  geom_point(aes(time,xestsir, shape = as.factor(noise)),
-             size = 2)+
+            size = 1.2)+
+  # geom_point(aes(time,xestsir, shape = as.factor(noise)),
+  #            size = 2)+
   facet_grid(time_interval+noise~infection_type)+
   scale_fill_manual(values = "gray")+
   scale_color_colorblind()+
@@ -296,29 +299,52 @@ calculated_r$model = factor(calculated_r$model, levels=c("Logistic","Gompertz"),
 ```
 
 
-
+  Logistic
 ```{r fig.height=10, fig.width=10}
 
 calculated_r %>%
+  filter(model == "Logistic") %>% 
   ggplot()+
   geom_line(aes(time,inf_rate, color = infection_type),
-            size = 2)+
-  geom_point(aes(time,r_calc),
+            size = 1.2)+
+  geom_point(aes(time,r_calc, shape = as.factor(noise)),
              size = 2,
              alpha = 1)+
-  facet_grid(time_interval+model~infection_type)+
+  facet_grid(time_interval+noise~infection_type, scales = "free_y")+
   scale_fill_viridis()+
   scale_color_colorblind()+
   labs(x = "Time",
        y = "Apparent infection rate")+
   guides(color= guide_legend("none"))+
-  xlim(0,60)+
-  theme(text = element_text(size = 14))
+  theme(text = element_text(size = 14), legend.position = "none")
 
-  
-# ggsave("figs/simulated_r_calc.png", dpi=300, height = 4, width = 6)
+ ggsave("figs/r_calc_logi.png", dpi=300, height = 10, width = 10)
 
 ```
+
+Gompertz
+
+```{r fig.height=10, fig.width=10}
+
+calculated_r %>%
+  filter(model == "Gompertz") %>% 
+  ggplot()+
+  geom_line(aes(time,inf_rate, color = infection_type),
+            size = 1.2)+
+  geom_point(aes(time,r_calc, shape = as.factor(noise)),
+             size = 2,
+             alpha = 1)+
+  facet_grid(time_interval+noise~infection_type, scales = "free_y")+
+  scale_fill_viridis()+
+  scale_color_colorblind()+
+  labs(x = "Time",
+       y = "Apparent infection rate")+
+  guides(color= guide_legend("none"))+
+  theme(text = element_text(size = 14), legend.position = "none")
+
+ ggsave("figs/r_calc_gompi.png", dpi=300, height = 10, width = 10)
+```
+
 ## Acuracy
 
 ```{r warning=FALSE}
@@ -351,7 +377,7 @@ ggplot()+
   geom_line(data =acuracy_est, aes(time_interval, RMS, color = "Estimated", linetype = as.factor(noise)),
             size = 1.2)+
   scale_color_colorblind("AIR")+
-  scale_fill_colorblind()+
+  scale_x_continuous(breaks = seq(1,9,by=2))+
   facet_grid(model~infection_type)+
   labs(x = "Time interval", y = "RMS", linetype  = "Noise")+
   theme(legend.position = "bottom",text = element_text(size = 14))
@@ -364,25 +390,47 @@ ggsave("figs/RMS.png", dpi=300, height = 6, width = 10)
 
 Load the data 
 ```{r}
-real = read_xlsx("curves_madden_book.xlsx")
+real = read_xlsx("actual_epidemic.xlsx")
+head(real)
+```
+ 
+ Calculate incidence means
+ 
+```{r}
+inc_real = real %>% 
+  group_by(trat,time) %>% 
+  summarise(inc = mean(as.numeric(y))) %>% 
+  spread(trat, inc)
+head(inc_real)
+```
+
+
+ Calculate uncertainty
+```{r}
+uncer = real %>% 
+  group_by(trat, time) %>% 
+  summarise(sd = sd(as.numeric(y))) %>% 
+  group_by(trat) %>% 
+  summarise(sd = mean(sd))
+head(uncer)
 ```
 
 ## Estimated AIR
 Run the Particle filter
 
-```{r message=FALSE, warning=FALSE}
+```{r}
 actual_all = data.frame()
-real_matrix = as.matrix(real)
+real_matrix = as.matrix(inc_real)
 colnames(real_matrix) = NULL
-for(i in 1:3){
+for(i in 1:4){
   data_actual = data.frame(curve = as.factor(i),
-                   SIR_filter(model = 1,
-                   guess_r = 0.2,
+                   SIR_filter(model = 3,
+                   guess_r = 0.1,
                    Nparti=100,
                    measures = real_matrix[,i+1],
-                   time = real$time,
-                   sd_meas = 0.2,
-                   sd_par = .5,
+                   time = inc_real$time,
+                   sd_meas = uncer$sd[i],
+                   sd_par = .3,
                    sd_model = 0.05,
                    dt= 7),
                    y = real_matrix[,i+1])  
@@ -391,13 +439,14 @@ actual_all = actual_all %>%
   bind_rows(data_actual)
 }
 ```
+
  Visualization
 ```{r}
 plot_grid(  actual_all %>% 
   ggplot()+
   geom_ribbon(aes(time, ymin = (ubdsir), ymax = (lbdsir), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
   geom_line(aes(time,y, color = curve),
-            size = 2)+
+            size = 1.2)+
   geom_point(aes(time,xestsir),
              size = 2, 
              alpha = 0.3)+
@@ -412,7 +461,7 @@ actual_all %>%
   ggplot()+
   geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
   geom_line(aes(time,sinti, color = curve),
-             size = 2)+
+             size = 1.2)+
   facet_wrap(~curve, nrow = 1)+
   scale_fill_manual(values = "gray")+
   scale_color_colorblind()+
@@ -430,41 +479,54 @@ nrow = 2)
 
 
 ```{r}
-plot_grid(  actual_all %>% 
-  ggplot()+
-  geom_ribbon(aes(time, ymin = (ubdsir), ymax = (lbdsir), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
-  geom_line(aes(time,y),
+plot_grid(real %>%
+            mutate(curve = case_when(trat== "A" ~1,
+                                     trat== "B" ~2,
+                                     trat== "C" ~3,
+                                     trat== "D" ~4 )) %>%
+            ggplot()+
+            geom_line(data =  actual_all, aes(time,y),
             size = 1.2, color = "steelblue")+
-  # geom_point(aes(time,xestsir),
-  #            size = 2, 
-  #            alpha = 1, color = "black")+
-  facet_wrap(~curve, nrow = 1)+
-  scale_fill_manual(values = "gray")+
-  scale_color_colorblind()+
-  labs(x = "Time",
-       y = "Incidence")+
-  theme(legend.position = "none"),
-
-actual_all%>%  
-  group_by(curve) %>% 
-  mutate(r_calc = (log(y/(1-y)) - log((lag(y,1)/(1-(lag(y,1))))))/(time - lag(time,1))) %>% 
-  ggplot()+
-  geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
-  geom_line(aes(time,sinti, linetype = "Estimated"),
-             size = 1.2)+
-  geom_point(aes(time,r_calc, shape = "Calculated"),
-             size = 2,
-             alpha  = 0.8)+
-  facet_wrap(~curve, nrow = 1)+
-  scale_fill_manual(values = "gray")+
-  labs(x = "Time",fill = "", shape = "",linetype ="",
-       y = "Apparent infection rate")+
-  theme(legend.position = "bottom")+
-  scale_y_continuous(breaks = seq(-2,2, 0.2)) ,
-nrow = 2,
-labels = c("A","B"), rel_heights  = c(0.7, 1)
+            geom_jitter(aes(time,as.numeric(y)),
+                        width = 0.4,
+                        size = 2,
+                        color = "steelblue")+
+            facet_wrap(~curve, nrow = 1)+
+            scale_y_continuous(breaks = seq(-2,2, 0.1))+
+            scale_color_colorblind()+
+            labs(x = "Time",
+                 y = "Incidence")+
+            theme(legend.position = "none", text = element_text(size=14)),
+          
+          actual_all%>%
+            group_by(curve) %>%
+            mutate(r_calc = (log(y/(1-y)) - log((lag(y,1)/(1-(lag(y,1))))))/(time - lag(time,1))) %>%
+            filter(time != 30) %>%
+            ggplot()+
+            geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro)),
+                        alpha = 0.3,
+                        stat = "identity") +
+            geom_line(aes(time,sinti, linetype = "Estimated"),
+                      size = 1.2)+
+            geom_point(aes(time,r_calc, shape = "Calculated"),
+                       size = 2,
+                       alpha  = 0.8)+
+            facet_wrap(~curve, nrow = 1)+
+            scale_fill_manual(values = "gray")+
+            labs(x = "Time",
+                 fill = "",
+                 shape = "",
+                 linetype ="",
+                 y = "Apparent infection rate")+
+            theme(legend.position = "bottom",
+                  text = element_text(size=14))+
+            scale_y_continuous(breaks = seq(-2,2, 0.1))+
+            xlim(30,60),
+          nrow = 2,
+          labels = c("A","B"),
+          rel_heights  = c(1, 1)
 )
- ggsave("figs/Actual_plots.png", dpi=300, height = 5, width = 8)
+ ggsave("figs/Actual_plots.png", dpi=300, height = 7, width = 7)
 ```
 
 

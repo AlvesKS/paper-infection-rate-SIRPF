@@ -86,6 +86,11 @@ SIR_filter = function(model, Nparti, measures, time,  guess_r, sd_meas, sd_par, 
            y[k + 1] = last(ode_gompi[,2]) 
          }
        
+      if(model == 3) {
+        ode_mono =ode(InitCond, steps, mono_fun, parms)  
+        y[k + 1] = last(ode_mono[,2]) 
+      }
+      
 
        xpartinew[l] <- y[k + 1]
       
