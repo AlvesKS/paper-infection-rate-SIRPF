@@ -500,7 +500,7 @@ plot_grid(real %>%
           
           actual_all%>%
             group_by(curve) %>%
-            mutate(r_calc = (log(y/(1-y)) - log((lag(y,1)/(1-(lag(y,1))))))/(time - lag(time,1))) %>%
+            mutate(r_calc = (log(y) - log(lag(y,1)))/(time - lag(time,1))) %>%
             filter(time != 30) %>%
             ggplot()+
             geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro)),
