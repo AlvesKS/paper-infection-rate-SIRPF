@@ -59,7 +59,7 @@ data = data %>%
 data_logi = data.frame(infection_type = as.factor(logi_setup[i,1]),
                    SIR_filter(model = 1,
                    guess_r = as.numeric(logi_setup[i,2]),
-                   Nparti=100,
+                   Nparti=500,
                    measures = data$Randon_intensity,
                    time = data$time,
                    sd_meas = 0.25,
@@ -87,6 +87,7 @@ logistic_all2 = logistic_all2 %>%
 }
 
 logistic_all3 = logistic_all3 %>% 
+  mutate(noise2 = noise) %>% 
   mutate(noise = case_when(noise == 0.10 ~ "\u03b1 =  0.10",
                            noise == 0.25 ~ "\u03b1 =  0.25")) %>% 
    mutate(time_interval2 = time_interval) %>% 
@@ -258,7 +259,7 @@ ggsave("figs/RMS.png", dpi=300, height = 5, width = 11)
 ```{r fig.height=8, fig.width=6, message=FALSE, warning=FALSE}
 plot_grid(
   logistic_all3 %>%
-  filter(time_interval == 1 & noise == 0.1 ) %>%
+  filter(time_interval2 == 1 & noise2 == 0.1 ) %>%
   filter(infection_type == c("Random")) %>%
   ggplot()+
   geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
@@ -274,7 +275,7 @@ plot_grid(
   ylim(-0.8,1.4),
   
   calculated_r %>%
-   filter(time_interval == 1 & noise == 0.1) %>%
+   filter(time_interval2 == 1 & noise2 == 0.1) %>%
   filter(infection_type == c("Random")) %>%
   ggplot()+
   geom_line(aes(time,inf_rate),size = 1.5, color = "steelblue")+
@@ -290,7 +291,7 @@ plot_grid(
         axis.title.x =element_text(color = "white"), axis.text.x = element_text(color = "white")),
   
   logistic_all3 %>%
-  filter(time_interval == 1 &  noise == 0.25 ) %>%
+  filter(time_interval2 == 1 &  noise2 == 0.25 ) %>%
   filter(infection_type == c("Random")) %>%
   ggplot()+
   geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
@@ -306,7 +307,7 @@ plot_grid(
   ylim(-0.8,1.4),
   
   calculated_r %>%
-   filter(time_interval == 1 & noise == 0.25) %>%
+   filter(time_interval2 == 1 & noise2 == 0.25) %>%
   filter(infection_type == c("Random")) %>%
   ggplot()+
   geom_line(aes(time,inf_rate),size = 1.5, color = "steelblue")+
@@ -322,7 +323,7 @@ plot_grid(
         axis.title.x =element_text(color = "white"), axis.text.x = element_text(color = "white")),
   
    logistic_all3 %>%
-  filter(time_interval == 1 &  noise == 0.1 ) %>%
+  filter(time_interval2 == 1 &  noise2 == 0.1 ) %>%
   filter(infection_type == c("Sinusoidal")) %>%
   ggplot()+
   geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
@@ -338,7 +339,7 @@ plot_grid(
   ylim(-0.8,1.4),
   
   calculated_r %>%
-   filter(time_interval == 1 & noise == 0.1) %>%
+   filter(time_interval2 == 1 & noise2 == 0.1) %>%
   filter(infection_type == c("Sinusoidal")) %>%
   ggplot()+
   geom_line(aes(time,inf_rate),size = 1.5, color = "steelblue")+
@@ -354,7 +355,7 @@ plot_grid(
         axis.title.x =element_text(color = "white"), axis.text.x = element_text(color = "white")),
   
   logistic_all3 %>%
-  filter(time_interval == 1 &  noise == 0.25 ) %>%
+  filter(time_interval2 == 1 &  noise2 == 0.25 ) %>%
   filter(infection_type == c("Sinusoidal")) %>%
   ggplot()+
   geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
@@ -369,7 +370,7 @@ plot_grid(
   ylim(-0.8,1.4),
   
   calculated_r %>%
-   filter(time_interval == 1 & noise == 0.25) %>%
+   filter(time_interval2 == 1 & noise2 == 0.25) %>%
   filter(infection_type == c("Sinusoidal")) %>%
   ggplot()+
   geom_line(aes(time,inf_rate),size = 1.5, color = "steelblue")+
@@ -393,7 +394,7 @@ ggsave("figs/Fig3.png", dpi=300, height = 8, width = 6)
 ```{r fig.height=8, fig.width=6, message=FALSE, warning=FALSE}
 plot_grid(
   logistic_all3 %>%
-  filter(time_interval == 5 & noise == 0.1 ) %>%
+  filter(time_interval2 == 5 & noise2 == 0.1 ) %>%
   filter(infection_type == c("Random")) %>%
   ggplot()+
   geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
@@ -409,7 +410,7 @@ plot_grid(
   ylim(-0.8,1.4),
   
   calculated_r %>%
-   filter(time_interval == 5 & noise == 0.1) %>%
+   filter(time_interval2 == 5 & noise2 == 0.1) %>%
   filter(infection_type == c("Random")) %>%
   ggplot()+
   geom_line(aes(time,inf_rate),size = 1.5, color = "steelblue")+
@@ -425,7 +426,7 @@ plot_grid(
         axis.title.x =element_text(color = "white"), axis.text.x = element_text(color = "white")),
   
   logistic_all3 %>%
-  filter(time_interval == 5 &  noise == 0.25 ) %>%
+  filter(time_interval2 == 5 &  noise2 == 0.25 ) %>%
   filter(infection_type == c("Random")) %>%
   ggplot()+
   geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
@@ -441,7 +442,7 @@ plot_grid(
   ylim(-0.8,1.4),
   
   calculated_r %>%
-   filter(time_interval == 5 & noise == 0.25) %>%
+   filter(time_interval2 == 5 & noise2 == 0.25) %>%
   filter(infection_type == c("Random")) %>%
   ggplot()+
   geom_line(aes(time,inf_rate),size = 1.5, color = "steelblue")+
@@ -457,7 +458,7 @@ plot_grid(
         axis.title.x =element_text(color = "white"), axis.text.x = element_text(color = "white")),
   
    logistic_all3 %>%
-  filter(time_interval == 5 &  noise == 0.1 ) %>%
+  filter(time_interval2 == 5 &  noise2 == 0.1 ) %>%
   filter(infection_type == c("Sinusoidal")) %>%
   ggplot()+
   geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
@@ -473,7 +474,7 @@ plot_grid(
   ylim(-0.8,1.4),
   
   calculated_r %>%
-   filter(time_interval == 5 & noise == 0.1) %>%
+   filter(time_interval2 == 5 & noise2 == 0.1) %>%
   filter(infection_type == c("Sinusoidal")) %>%
   ggplot()+
   geom_line(aes(time,inf_rate),size = 1.5, color = "steelblue")+
@@ -489,7 +490,7 @@ plot_grid(
         axis.title.x =element_text(color = "white"), axis.text.x = element_text(color = "white")),
   
   logistic_all3 %>%
-  filter(time_interval == 5 &  noise == 0.25 ) %>%
+  filter(time_interval2 == 5 &  noise2 == 0.25 ) %>%
   filter(infection_type == c("Sinusoidal")) %>%
   ggplot()+
   geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
@@ -504,7 +505,7 @@ plot_grid(
   ylim(-0.8,1.4),
   
   calculated_r %>%
-   filter(time_interval == 5 & noise == 0.25) %>%
+   filter(time_interval2 == 5 & noise2 == 0.25) %>%
   filter(infection_type == c("Sinusoidal")) %>%
   ggplot()+
   geom_line(aes(time,inf_rate),size = 1.5, color = "steelblue")+
