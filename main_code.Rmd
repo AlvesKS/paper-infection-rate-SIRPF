@@ -1,0 +1,527 @@
+% Analysis
+
+# Packages
+Load the packages needed to the analysis
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(deSolve)
+library(ggthemes)
+library(cowplot)
+library(viridis)
+```
+
+# `ggplot2` global theme
+
+```{r}
+theme_set(theme_light())
+```
+
+# functions
+
+The fuction for simulation of the measures  and particle filter are called here. 
+```{r}
+source("logistic.R")
+source("particle_filter2.R")
+```
+
+# Estimation for logistic model
+
+Here we set the initial values for simulation of each type of infection rate behavior.
+
+```{r}
+logi_setup = matrix(
+  c("Constant", 0.2,
+  "Increasing", 0.05,
+  "Decreasing", 0.3,
+  "Sinusoidal", 0.2,
+  "Random", 0.2),
+  nrow=5,ncol=,byrow = TRUE) 
+
+```
+
+Run the particle filter for each type of infection rate and for each time interval
+
+```{r warning=FALSE}
+noise = c(0.1, 0.25)
+
+logistic_all3 = data.frame()
+for(j in 1:2){
+logistic_all2 = data.frame()
+for(k in seq(1,10, by = 2)){
+
+logistic_all = data.frame()
+for( i in 1:5){
+  set.seed(5)
+data = logistic(N= 60, dt=0.5, y0=0.001, r=as.numeric(logi_setup[i,2]), sd = noise[j], inf = i)
+data = data %>% 
+  filter(time %in% c(seq(0,60, by = k)))
+data_logi = data.frame(infection_type = as.factor(logi_setup[i,1]),
+                   SIR_filter(model = 1,
+                   guess_r = as.numeric(logi_setup[i,2]),
+                   Nparti=100,
+                   measures = data$Randon_intensity,
+                   time = data$time,
+                   sd_meas = 0.25,
+                   sd_par = 0.15,
+                   sd_model = 0.005),
+                   y = data$Intensity,
+                   inf_rate = data$inf_rate)  
+
+logistic_all = logistic_all %>% 
+  bind_rows(data_logi)
+}
+
+logistic_all = logistic_all %>% 
+  mutate(time_interval = k)
+  
+logistic_all2 = logistic_all2 %>% 
+  bind_rows(logistic_all) 
+}
+  logistic_all2 = logistic_all2 %>% 
+    mutate(noise = noise[j])
+  
+ logistic_all3 =  logistic_all3 %>% 
+   bind_rows(logistic_all2) 
+   
+}
+
+logistic_all3 = logistic_all3 %>% 
+  mutate(noise = case_when(noise == 0.10 ~ "\u03b1 =  0.10",
+                           noise == 0.25 ~ "\u03b1 =  0.25")) %>% 
+   mutate(time_interval2 = time_interval) %>% 
+  mutate(time_interval = case_when(time_interval == 1 ~ "\u0394t =  1",
+                                   time_interval == 3 ~ "\u0394t =  3",
+                                   time_interval == 5 ~ "\u0394t =  5",
+                                   time_interval == 7 ~ "\u0394t =  7",
+                                   time_interval == 9 ~ "\u0394t =  9"))
+```
+
+
+## Visualization
+```{r fig.height=10, fig.width=10}
+
+logistic_all3 %>% 
+  ggplot()+
+  geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
+  geom_line(aes(time,inf_rate, color = infection_type),
+            size = 1.2)+
+  geom_point(aes(time,sinti, shape = as.factor(noise)),
+             size = 2, alpha = 0.5)+
+  facet_grid(time_interval+noise~infection_type, scales = "free_y")+
+  scale_fill_manual(values = "gray")+
+  scale_color_colorblind()+
+  labs(x = "Time",
+       y = "Apparent infection rate")+
+  theme(legend.position = "none",text = element_text(size = 14))+
+  scale_y_continuous(breaks = seq(-2,2, 0.2))
+
+ggsave("figs/logistic_air.png", dpi=300, height = 12, width = 8)
+```
+
+```{r fig.height=10, fig.width=10}
+logistic_all3 %>% 
+  ggplot()+
+  geom_ribbon(aes(time, ymin = (ubdsir), ymax = (lbdsir), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
+  geom_line(aes(time,y, color = infection_type),
+            size = 1.2)+
+  geom_point(aes(time,xestsir),shape=1,
+              size = 1.5, alpha = 0.7)+
+  facet_grid(time_interval+noise~infection_type)+
+  scale_fill_manual(values = "gray")+
+  scale_color_colorblind()+
+  labs(x = "Time",
+       y = "Severity")+
+  theme(legend.position = "none",text = element_text(size = 16))+
+  scale_y_continuous(breaks = seq(0,1, 0.25))
+ggsave("figs/logistic_curve.png", dpi=300, height = 12, width = 8)
+```
+
+## noised DPC
+
+```{r}
+logistic_all3 %>% 
+  ggplot()+
+  geom_line(aes(time,realSmeas, color = infection_type),
+            size = 1.2)+
+
+  facet_grid(time_interval+noise~infection_type)+
+  scale_fill_manual(values = "gray")+
+  scale_color_colorblind()+
+  labs(x = "Time",
+       y = "Severity")+
+  theme(legend.position = "none",text = element_text(size = 16))+
+  scale_y_continuous(breaks = seq(0,1, 0.25))
+ggsave("figs/logistic_noised.png", dpi=300, height = 12, width = 8)
+```
+
+
+
+
+## Acuracy
+
+```{r warning=FALSE}
+a = logistic_all3 %>% 
+  group_by(infection_type,time_interval2, noise) %>%
+  mutate(rmsi = (inf_rate - sinti)^2,
+         maei = abs(inf_rate - sinti)) %>% 
+  summarise(RMS = sqrt((1/(length(inf_rate)))*sum(rmsi, na.rm = T)),
+            MAE = mean(maei)) %>% 
+  mutate(model = "Logistic")
+
+acuracy_logi = a
+
+
+```
+
+
+
+# Calculate the Apparent infection rate
+
+## Simulated epidemics
+```{r}
+calc_r_log = logistic_all3 %>%
+  group_by(infection_type,time_interval,noise) %>% 
+  mutate(r_calc = (log(realSmeas/(1-realSmeas)) - log((lag(realSmeas,1)/(1-(lag(realSmeas,1))))))/(time - lag(time,1))) %>% 
+  mutate(model = "Logistic")
+
+
+calculated_r = calc_r_log
+ 
+```
+
+
+  Logistic
+```{r fig.height=10, fig.width=10}
+
+calculated_r %>%
+  ggplot()+
+  geom_line(aes(time,inf_rate, color = infection_type),
+            size = 1.2)+
+  geom_point(aes(time,r_calc, shape = as.factor(noise)),
+             size = 2,
+             alpha = 1)+
+  facet_grid(time_interval+noise~infection_type, scales = "free_y")+
+  scale_fill_viridis()+
+  scale_color_colorblind()+
+  labs(x = "Time",
+       y = "Apparent infection rate")+
+  guides(color= guide_legend("none"))+
+  theme(text = element_text(size = 14), legend.position = "none")
+
+ ggsave("figs/r_calc_logi.png", dpi=300, height = 12, width = 8)
+
+```
+
+## Acuracy
+
+```{r warning=FALSE}
+acuracy_calc = calculated_r%>% 
+  filter(r_calc != is.na(r_calc)) %>% 
+  group_by(infection_type, time_interval2,noise) %>% 
+  mutate(rmsi = (inf_rate - r_calc)^2,
+         maei = abs(inf_rate - r_calc)) %>% 
+  summarise(RMS = sqrt((1/(length(inf_rate)))*sum(rmsi, na.rm = T)))
+acuracy_calc
+```
+
+ bind data.frames of both models 
+```{r}
+acuracy_est = acuracy_logi
+
+```
+ 
+# Visualization 
+
+## RMS 
+ plotting the RMS 
+
+```{r}
+ggplot()+
+  geom_line(data =acuracy_calc, aes(time_interval2, RMS, color = "Calculated", linetype = as.factor(noise)),
+            size = 1.5)+
+  geom_line(data =acuracy_est, aes(time_interval2, RMS, color = "Estimated", linetype = as.factor(noise)),
+            size = 1.5)+
+  scale_color_colorblind("AIR")+
+  scale_x_continuous(breaks = seq(1,9,by=2))+
+  scale_linetype_manual(values = c("solid","dashed"))+
+  facet_grid(~infection_type)+
+  guides(linetype=guide_legend(keywidth = 3, keyheight = 1),
+         color=guide_legend(keywidth = 3, keyheight = 1))+
+  labs(x = "Time interval", y = "RMSE", linetype  = "Noise")+
+  theme(legend.position = "right",
+        text = element_text(size = 14))
+
+ggsave("figs/RMS.png", dpi=300, height = 5, width = 11)
+```
+## graph 1
+```{r fig.height=8, fig.width=6, message=FALSE, warning=FALSE}
+plot_grid(
+  logistic_all3 %>%
+  filter(time_interval == 1 & noise == 0.1 ) %>%
+  filter(infection_type == c("Random")) %>%
+  ggplot()+
+  geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
+  geom_line(aes(time,inf_rate),size = 1.5, color = "steelblue")+
+  geom_point(aes(time,sinti),size = 2, alpha = 0.5)+
+  # facet_grid(.~infection_type+noise)+
+  scale_fill_manual(values = "gray")+
+  scale_color_colorblind()+
+  labs(x = "Time",y = "AIR")+
+  theme(legend.position = "none",text = element_text(size = 12),
+        axis.title.x =element_text(color = "white"), axis.text.x = element_text(color = "white"))+
+  scale_y_continuous(breaks = seq(-2,2, 0.2))+
+  ylim(-0.8,1.4),
+  
+  calculated_r %>%
+   filter(time_interval == 1 & noise == 0.1) %>%
+  filter(infection_type == c("Random")) %>%
+  ggplot()+
+  geom_line(aes(time,inf_rate),size = 1.5, color = "steelblue")+
+  geom_point(aes(time,r_calc),size = 2,alpha = 0.5)+
+  # facet_grid(.~infection_type+noise)+
+  scale_fill_viridis()+
+  scale_color_colorblind()+
+  labs(x = "Time",y = "AIR")+
+  scale_y_continuous(breaks = seq(-2,2, 0.2),)+
+  guides(color= guide_legend("none"))+
+  ylim(-0.8,1.4)+
+  theme(text = element_text(size = 12), legend.position = "none", axis.title.y =element_text(color = "white"), axis.text.y = element_text(color = "white"),
+        axis.title.x =element_text(color = "white"), axis.text.x = element_text(color = "white")),
+  
+  logistic_all3 %>%
+  filter(time_interval == 1 &  noise == 0.25 ) %>%
+  filter(infection_type == c("Random")) %>%
+  ggplot()+
+  geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
+  geom_line(aes(time,inf_rate),size = 1.5, color = "steelblue")+
+  geom_point(aes(time,sinti),size = 2, alpha = 0.5)+
+  # facet_grid(.~infection_type+noise)+
+  scale_fill_manual(values = "gray")+
+  scale_color_colorblind()+
+  labs(x = "Time",y = "AIR")+
+  theme(legend.position = "none",text = element_text(size = 12),
+        axis.title.x =element_text(color = "white"), axis.text.x = element_text(color = "white"))+
+  scale_y_continuous(breaks = seq(-2,2, 0.2))+
+  ylim(-0.8,1.4),
+  
+  calculated_r %>%
+   filter(time_interval == 1 & noise == 0.25) %>%
+  filter(infection_type == c("Random")) %>%
+  ggplot()+
+  geom_line(aes(time,inf_rate),size = 1.5, color = "steelblue")+
+  geom_point(aes(time,r_calc),size = 2,alpha = 0.5)+
+  # facet_grid(.~infection_type+noise)+
+  scale_fill_viridis()+
+  scale_color_colorblind()+
+  labs(x = "Time",y = "AIR")+
+  scale_y_continuous(breaks = seq(-2,2, 0.2),)+
+  guides(color= guide_legend("none"))+
+  ylim(-0.8,1.4)+
+  theme(text = element_text(size = 12), legend.position = "none", axis.title.y =element_text(color = "white"),axis.text.y = element_text(color = "white"),
+        axis.title.x =element_text(color = "white"), axis.text.x = element_text(color = "white")),
+  
+   logistic_all3 %>%
+  filter(time_interval == 1 &  noise == 0.1 ) %>%
+  filter(infection_type == c("Sinusoidal")) %>%
+  ggplot()+
+  geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
+  geom_line(aes(time,inf_rate),size = 1.5, color = "steelblue")+
+  geom_point(aes(time,sinti),size = 2, alpha = 0.5)+
+  # facet_grid(.~infection_type+noise)+
+  scale_fill_manual(values = "gray")+
+  scale_color_colorblind()+
+  labs(x = "Time",y = "AIR")+
+  theme(legend.position = "none",text = element_text(size = 12),
+        axis.title.x =element_text(color = "white"), axis.text.x = element_text(color = "white"))+
+  scale_y_continuous(breaks = seq(-2,2, 0.2))+
+  ylim(-0.8,1.4),
+  
+  calculated_r %>%
+   filter(time_interval == 1 & noise == 0.1) %>%
+  filter(infection_type == c("Sinusoidal")) %>%
+  ggplot()+
+  geom_line(aes(time,inf_rate),size = 1.5, color = "steelblue")+
+  geom_point(aes(time,r_calc),size = 2,alpha = 0.5)+
+  # facet_grid(.~infection_type+noise)+
+  scale_fill_viridis()+
+  scale_color_colorblind()+
+  labs(x = "Time",y = "AIR")+
+  scale_y_continuous(breaks = seq(-2,2, 0.2),)+
+  guides(color= guide_legend("none"))+
+  ylim(-0.8,1.4)+
+  theme(text = element_text(size = 12), legend.position = "none", axis.title.y =element_text(color = "white"),axis.text.y = element_text(color = "white"),
+        axis.title.x =element_text(color = "white"), axis.text.x = element_text(color = "white")),
+  
+  logistic_all3 %>%
+  filter(time_interval == 1 &  noise == 0.25 ) %>%
+  filter(infection_type == c("Sinusoidal")) %>%
+  ggplot()+
+  geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
+  geom_line(aes(time,inf_rate),size = 1.5, color = "steelblue")+
+  geom_point(aes(time,sinti),size = 2, alpha = 0.5)+
+  # facet_grid(.~infection_type+noise)+
+  scale_fill_manual(values = "gray")+
+  scale_color_colorblind()+
+  labs(x = "Time",y = "AIR")+
+  theme(legend.position = "none",text = element_text(size = 12))+
+  scale_y_continuous(breaks = seq(-2,2, 0.2))+
+  ylim(-0.8,1.4),
+  
+  calculated_r %>%
+   filter(time_interval == 1 & noise == 0.25) %>%
+  filter(infection_type == c("Sinusoidal")) %>%
+  ggplot()+
+  geom_line(aes(time,inf_rate),size = 1.5, color = "steelblue")+
+  geom_point(aes(time,r_calc),size = 2,alpha = 0.5)+
+  # facet_grid(.~infection_type+noise)+
+  scale_fill_viridis()+
+  scale_color_colorblind()+
+  labs(x = "Time",y = "AIR")+
+  scale_y_continuous(breaks = seq(-2,2, 0.2),)+
+  guides(color= guide_legend("none"))+
+  ylim(-0.8,1.4)+
+  theme(text = element_text(size = 12), legend.position = "none", axis.title.y =element_text(color = "white"),axis.text.y = element_text(color = "white")),
+  
+  ncol = 2,
+  labels = "AUTO"
+
+)
+ggsave("figs/Fig3.png", dpi=300, height = 8, width = 6)
+```
+## graph 2
+```{r fig.height=8, fig.width=6, message=FALSE, warning=FALSE}
+plot_grid(
+  logistic_all3 %>%
+  filter(time_interval == 5 & noise == 0.1 ) %>%
+  filter(infection_type == c("Random")) %>%
+  ggplot()+
+  geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
+  geom_line(aes(time,inf_rate),size = 1.5, color = "steelblue")+
+  geom_point(aes(time,sinti),size = 2, alpha = 0.5)+
+  # facet_grid(.~infection_type+noise)+
+  scale_fill_manual(values = "gray")+
+  scale_color_colorblind()+
+  labs(x = "Time",y = "AIR")+
+  theme(legend.position = "none",text = element_text(size = 12),
+        axis.title.x =element_text(color = "white"), axis.text.x = element_text(color = "white"))+
+  scale_y_continuous(breaks = seq(-2,2, 0.2))+
+  ylim(-0.8,1.4),
+  
+  calculated_r %>%
+   filter(time_interval == 5 & noise == 0.1) %>%
+  filter(infection_type == c("Random")) %>%
+  ggplot()+
+  geom_line(aes(time,inf_rate),size = 1.5, color = "steelblue")+
+  geom_point(aes(time,r_calc),size = 2,alpha = 0.5)+
+  # facet_grid(.~infection_type+noise)+
+  scale_fill_viridis()+
+  scale_color_colorblind()+
+  labs(x = "Time",y = "AIR")+
+  scale_y_continuous(breaks = seq(-2,2, 0.2),)+
+  guides(color= guide_legend("none"))+
+  ylim(-0.8,1.4)+
+  theme(text = element_text(size = 12), legend.position = "none", axis.title.y =element_text(color = "white"), axis.text.y = element_text(color = "white"),
+        axis.title.x =element_text(color = "white"), axis.text.x = element_text(color = "white")),
+  
+  logistic_all3 %>%
+  filter(time_interval == 5 &  noise == 0.25 ) %>%
+  filter(infection_type == c("Random")) %>%
+  ggplot()+
+  geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
+  geom_line(aes(time,inf_rate),size = 1.5, color = "steelblue")+
+  geom_point(aes(time,sinti),size = 2, alpha = 0.5)+
+  # facet_grid(.~infection_type+noise)+
+  scale_fill_manual(values = "gray")+
+  scale_color_colorblind()+
+  labs(x = "Time",y = "AIR")+
+  theme(legend.position = "none",text = element_text(size = 12),
+        axis.title.x =element_text(color = "white"), axis.text.x = element_text(color = "white"))+
+  scale_y_continuous(breaks = seq(-2,2, 0.2))+
+  ylim(-0.8,1.4),
+  
+  calculated_r %>%
+   filter(time_interval == 5 & noise == 0.25) %>%
+  filter(infection_type == c("Random")) %>%
+  ggplot()+
+  geom_line(aes(time,inf_rate),size = 1.5, color = "steelblue")+
+  geom_point(aes(time,r_calc),size = 2,alpha = 0.5)+
+  # facet_grid(.~infection_type+noise)+
+  scale_fill_viridis()+
+  scale_color_colorblind()+
+  labs(x = "Time",y = "AIR")+
+  scale_y_continuous(breaks = seq(-2,2, 0.2),)+
+  guides(color= guide_legend("none"))+
+  ylim(-0.8,1.4)+
+  theme(text = element_text(size = 12), legend.position = "none", axis.title.y =element_text(color = "white"),axis.text.y = element_text(color = "white"),
+        axis.title.x =element_text(color = "white"), axis.text.x = element_text(color = "white")),
+  
+   logistic_all3 %>%
+  filter(time_interval == 5 &  noise == 0.1 ) %>%
+  filter(infection_type == c("Sinusoidal")) %>%
+  ggplot()+
+  geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
+  geom_line(aes(time,inf_rate),size = 1.5, color = "steelblue")+
+  geom_point(aes(time,sinti),size = 2, alpha = 0.5)+
+  # facet_grid(.~infection_type+noise)+
+  scale_fill_manual(values = "gray")+
+  scale_color_colorblind()+
+  labs(x = "Time",y = "AIR")+
+  theme(legend.position = "none",text = element_text(size = 12),
+        axis.title.x =element_text(color = "white"), axis.text.x = element_text(color = "white"))+
+  scale_y_continuous(breaks = seq(-2,2, 0.2))+
+  ylim(-0.8,1.4),
+  
+  calculated_r %>%
+   filter(time_interval == 5 & noise == 0.1) %>%
+  filter(infection_type == c("Sinusoidal")) %>%
+  ggplot()+
+  geom_line(aes(time,inf_rate),size = 1.5, color = "steelblue")+
+  geom_point(aes(time,r_calc),size = 2,alpha = 0.5)+
+  # facet_grid(.~infection_type+noise)+
+  scale_fill_viridis()+
+  scale_color_colorblind()+
+  labs(x = "Time",y = "AIR")+
+  scale_y_continuous(breaks = seq(-2,2, 0.2),)+
+  guides(color= guide_legend("none"))+
+  ylim(-0.8,1.4)+
+  theme(text = element_text(size = 12), legend.position = "none", axis.title.y =element_text(color = "white"),axis.text.y = element_text(color = "white"),
+        axis.title.x =element_text(color = "white"), axis.text.x = element_text(color = "white")),
+  
+  logistic_all3 %>%
+  filter(time_interval == 5 &  noise == 0.25 ) %>%
+  filter(infection_type == c("Sinusoidal")) %>%
+  ggplot()+
+  geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
+  geom_line(aes(time,inf_rate),size = 1.5, color = "steelblue")+
+  geom_point(aes(time,sinti),size = 2, alpha = 0.5)+
+  # facet_grid(.~infection_type+noise)+
+  scale_fill_manual(values = "gray")+
+  scale_color_colorblind()+
+  labs(x = "Time",y = "AIR")+
+  theme(legend.position = "none",text = element_text(size = 12))+
+  scale_y_continuous(breaks = seq(-2,2, 0.2))+
+  ylim(-0.8,1.4),
+  
+  calculated_r %>%
+   filter(time_interval == 5 & noise == 0.25) %>%
+  filter(infection_type == c("Sinusoidal")) %>%
+  ggplot()+
+  geom_line(aes(time,inf_rate),size = 1.5, color = "steelblue")+
+  geom_point(aes(time,r_calc),size = 2,alpha = 0.5)+
+  # facet_grid(.~infection_type+noise)+
+  scale_fill_viridis()+
+  scale_color_colorblind()+
+  labs(x = "Time",y = "AIR")+
+  scale_y_continuous(breaks = seq(-2,2, 0.2),)+
+  guides(color= guide_legend("none"))+
+  ylim(-0.8,1.4)+
+  theme(text = element_text(size = 12), legend.position = "none", axis.title.y =element_text(color = "white"),axis.text.y = element_text(color = "white")),
+  
+  ncol = 2,
+  labels = "AUTO"
+
+)
+ggsave("figs/Fig4.png", dpi=300, height = 8, width = 6)
+```
+

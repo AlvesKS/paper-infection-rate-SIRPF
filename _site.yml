@@ -25,7 +25,7 @@ navbar:
     href: index.html
   - text: Code analysis 
     icon: fa fa-file-code-o
-    href: optimized_code.html
+    href: main_code.html
     
   right:
   - text: source
