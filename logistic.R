@@ -19,10 +19,10 @@ logistic = function(N=10,dt=1, y0=0.01, r, sd=1, inf = 1){
     if(inf == 1){r[k+1] = r[k]}
     
     #Increassing
-    if(inf == 2){r[k+1] = r[k]+0.002}
+    if(inf == 2){r[k+1] = r[k]+0.0035}
     
     #Decreasing
-    if(inf == 3){r[k+1] = r[k]-0.002}
+    if(inf == 3){r[k+1] = r[k]-0.0035}
     
     #Sinusoidal
     if(inf == 4){r[k+1] = r[k]+ ((pi * cos((pi * (k - 1)) / 30)) / 360)}
