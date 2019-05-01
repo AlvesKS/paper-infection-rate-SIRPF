@@ -23,7 +23,7 @@ navbar:
   - text: About
     icon: fa fa-home
     href: index.html
-  - text: Code analysis 
+  - text: Analysis 
     icon: fa fa-file-code-o
     href: main_code.html
     

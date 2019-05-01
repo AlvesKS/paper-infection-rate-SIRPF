@@ -144,8 +144,8 @@ logistic_all3 %>%
   geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
   geom_line(aes(time,inf_rate, color = infection_type),
             size = 1.2)+
-  geom_point(aes(time,sinti, shape = as.factor(noise)),
-             size = 2, alpha = 0.5)+
+  geom_point(aes(time,sinti),
+             size = 2, alpha = 1)+
   facet_grid(time_interval+noise~infection_type, scales = "free_y")+
   scale_fill_manual(values = "gray")+
   scale_color_colorblind()+
@@ -227,7 +227,7 @@ calculated_r %>%
   ggplot()+
   geom_line(aes(time,inf_rate, color = infection_type),
             size = 1.2)+
-  geom_point(aes(time,r_calc, shape = as.factor(noise)),
+  geom_point(aes(time,r_calc),
              size = 2,
              alpha = 1)+
   facet_grid(time_interval+noise~infection_type, scales = "free_y")+
@@ -299,7 +299,7 @@ plot_grid(logistic_all3 %>%
     scale_fill_manual(values = "gray")+
     scale_color_colorblind()+
     labs(x = "Time",
-         y = "Severity", color = "AIR")+
+         y = "Disease intensity", color = "AIR")+
     theme(text = element_text(size = 16),legend.position = "none", axis.title.x = element_text(color ="white"))+
     scale_y_continuous(breaks = seq(0,1, 0.25)),
 
@@ -311,7 +311,7 @@ logistic_all3 %>%
     scale_fill_manual(values = "gray")+
     scale_color_colorblind()+
     labs(x = "Time",
-         y = "Severity", color = "AIR")+
+         y = "Disease intensity", color = "AIR")+
     theme(text = element_text(size = 16),legend.position = "none", axis.title.x = element_text(color ="white"))+
     scale_y_continuous(breaks = seq(0,1, 0.25)),
 
@@ -324,7 +324,7 @@ logistic_all3 %>%
     scale_fill_manual(values = "gray")+
     scale_color_colorblind()+
     labs(x = "Time",
-         y = "Severity", color = "")+
+         y = "Disease intensity", color = "")+
     theme(text = element_text(size = 16),legend.position = "none")+
     scale_y_continuous(breaks = seq(0,1, 0.25)),
 nrow = 3, rel_heights =  c(0.83,0.83,1), labels = "AUTO")
