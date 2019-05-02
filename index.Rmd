@@ -1,6 +1,6 @@
 % About
 
-<img src = "figs/diagram.png" width = 350px align = right> In this website are available the codes used to reproduce the analysis and results of the research conducted by a master student Kaique dos S. Alves under the supervision of Prof. Emerson Del Ponte, Universidade Federal de Vicosa, MG, Brazil.
+<img src = "figs/diagram.png" width = 450px align = right> In this website are available the codes used to reproduce the analysis and results of the research conducted by a master student Kaique dos S. Alves under the supervision of Prof. Emerson Del Ponte, Universidade Federal de Vicosa, MG, Brazil.
 
   The main objective of the reseach was to estimate the time-varying apparent infection rate of simulated disease epidemics using a data assimilation method called Particle Filter and compare its results to an arrangement of the logistic model to obtain the between two time points. 
 
