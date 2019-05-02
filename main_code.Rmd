@@ -126,7 +126,7 @@ logistic_all3 %>%
   scale_fill_manual(values = "gray")+
   scale_color_colorblind()+
   labs(x = "Time",
-       y = "Severity")+
+       y = "Disease intensity")+
   theme(legend.position = "none",text = element_text(size = 16),
         strip.text = element_text(color = "black"),
         strip.background = element_rect(fill="white"))+
@@ -159,7 +159,7 @@ logistic_all3 %>%
 ggsave("figs/logistic_air.png", dpi=300, height = 12, width = 8)
 ```
 
-Visualization of the severity estimation 
+Visualization of the disease intensity estimation 
 
 ```{r fig.height=10, fig.width=10}
 logistic_all3 %>% 
@@ -173,7 +173,7 @@ logistic_all3 %>%
   scale_fill_manual(values = "gray")+
   scale_color_colorblind()+
   labs(x = "Time",
-       y = "Severity")+
+       y = "Disease intensity")+
   theme(legend.position = "none",text = element_text(size = 16),
         strip.text = element_text(color = "black"),
         strip.background = element_rect(fill="white"))+
@@ -339,7 +339,7 @@ a = get_legend(logistic_all3 %>%
     scale_fill_manual(values = "gray")+
     scale_color_colorblind()+
     labs(x = "Time",
-         y = "Severity", color = "")+
+         y = "Disease intensity", color = "")+
     theme(text = element_text(size = 16),legend.position = "right")+
     scale_y_continuous(breaks = seq(0,1, 0.25))), rel_widths = c(1,0.4))
 

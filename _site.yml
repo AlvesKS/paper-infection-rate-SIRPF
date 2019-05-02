@@ -30,4 +30,4 @@ navbar:
   right:
   - text: source
     icon: fa-github-square
-    href: https://github.com/AlvesKS/infection_rate_PF
+    href: https://github.com/AlvesKS/paper-infection-rate-SIRPF

@@ -6,11 +6,7 @@
 
 ## Citation
 
-Please cite this research compendium as:  
-
-
-
-## Licences
+Alves, K. S., & Del Ponte, E. M. (2019, May 2). Research compendium - Estimation of a time-varying apparent infection rate from plant disease progress curves: a particle filter approach. https://doi.org/10.17605/OSF.IO/7NYUJ  
 
 
 
