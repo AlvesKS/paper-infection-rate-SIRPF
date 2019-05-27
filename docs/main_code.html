@@ -15,7 +15,7 @@
 
 <script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<link href="site_libs/bootstrap-3.3.5/css/flatly.min.css" rel="stylesheet" />
 <script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
@@ -25,7 +25,7 @@
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
 <script src="site_libs/navigation-1.1/codefolding.js"></script>
 <script src="site_libs/navigation-1.1/sourceembed.js"></script>
-<link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
 <script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
 <link href="site_libs/pagedtable-1.1/css/pagedtable.css" rel="stylesheet" />
 <script src="site_libs/pagedtable-1.1/js/pagedtable.js"></script>
@@ -116,33 +116,33 @@ summary {
 <style type="text/css">
 /* padding for bootstrap navbar */
 body {
-  padding-top: 51px;
+  padding-top: 60px;
   padding-bottom: 40px;
 }
 /* offset scroll position for anchor links (for fixed navbar)  */
 .section h1 {
-  padding-top: 56px;
-  margin-top: -56px;
+  padding-top: 65px;
+  margin-top: -65px;
 }
 .section h2 {
-  padding-top: 56px;
-  margin-top: -56px;
+  padding-top: 65px;
+  margin-top: -65px;
 }
 .section h3 {
-  padding-top: 56px;
-  margin-top: -56px;
+  padding-top: 65px;
+  margin-top: -65px;
 }
 .section h4 {
-  padding-top: 56px;
-  margin-top: -56px;
+  padding-top: 65px;
+  margin-top: -65px;
 }
 .section h5 {
-  padding-top: 56px;
-  margin-top: -56px;
+  padding-top: 65px;
+  margin-top: -65px;
 }
 .section h6 {
-  padding-top: 56px;
-  margin-top: -56px;
+  padding-top: 65px;
+  margin-top: -65px;
 }
 .dropdown-submenu {
   position: relative;
@@ -402,7 +402,7 @@ div.tocify {
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>
       </button>
-      <a class="navbar-brand" href="index.html">Time varying infection rate</a>
+      <a class="navbar-brand" href="index.html">Particle Filter - Infection Rate</a>
     </div>
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav">
@@ -418,6 +418,13 @@ div.tocify {
     <span class="fa fa fa fa-file-code-o"></span>
      
     Analysis
+  </a>
+</li>
+<li>
+  <a href="paper-figures.html">
+    <span class="fa fa fa fa-file-code-o"></span>
+     
+    Figures
   </a>
 </li>
       </ul>
@@ -450,352 +457,483 @@ div.tocify {
 </div>
 
 
-<div id="packages" class="section level1">
-<h1>Packages</h1>
-<p>Load the packages needed to the analysis</p>
+<div id="packages-and-settings" class="section level2">
+<h2>Packages and settings</h2>
+<p>Our analyses in R depend on a few functions available in five R packages and are based on the tidyverse tools and programming style.</p>
 <pre class="r"><code>library(tidyverse)
 library(deSolve)
 library(ggthemes)
 library(cowplot)
-library(viridis)</code></pre>
+library(viridis)
+theme_set(theme_light()) # sets theme_light() as global</code></pre>
 </div>
-<div id="ggplot2-global-theme" class="section level1">
-<h1><code>ggplot2</code> global theme</h1>
-<pre class="r"><code>theme_set(theme_light())</code></pre>
+<div id="epidemic-simulations" class="section level2">
+<h2>Epidemic simulations</h2>
+<p>A function was created to facilitate the production of synthetic epidemic data based on a few arguments that should be provided by the user such as epidemic duration, time interval, apparent infection rate, initial inoculum and uncertainty in the measures (standard deviation).</p>
+<pre class="r"><code>logi_fun &lt;- function(t, y, par) {
+  
+  y &lt;- y[1]
+  r &lt;- par$r
+  dy = y*r*(1-y)
+  return(list(c(dy)))
+}
+
+logistic = function(N=10, dt=1, y0=0.01, r, sd=1, inf = 1){
+  
+  time &lt;- seq(0,N, by=dt)
+  w = numeric(length(time))
+  y &lt;- numeric(length(time))
+  y[1] = y0
+  aa &lt;- -1
+  bb &lt;- 1
+  for (k in 1:(length(time) - 1)) {
+    # Constant
+    if(inf == 1){r[k+1] = r[k]}
+    
+    # Increasing
+    if(inf == 2){r[k+1] = r[k]+0.0035}
+    
+    # Decreasing
+    if(inf == 3){r[k+1] = r[k]-0.0035}
+    
+    # Sinusoidal
+    if(inf == 4){r[k+1] = r[k]+ ((pi * cos((pi * (k - 1)) / 30)) / 360)}
+    
+    # Random
+    rr &lt;- aa + (bb - aa) * runif(1)
+    if(inf == 5){r[k+1] = r[k] + 0.05 * rr}
+    
+    InitCond &lt;- c(y[k])
+    steps = seq(time[k],time[k+1], by=dt)
+    parms &lt;- list(r=r[k])
+    ode_logi &lt;- ode(InitCond, steps, logi_fun, parms)  
+    y[k + 1] = last(ode_logi[,2])
+  #  y[k + 1] &lt;- dt * (r[k] * y[k] * (1 - y[k])) + y[k]
+  }
+  
+  
+  for(i in 1:length(time)){
+    
+    w[i] = rnorm(1,y[i],sd = sd*y[i]*(1-y[i]))
+    
+    if(w[i] &gt; 1){
+      w[i]=1
+    }
+    if(w [i] &lt; 0){
+      w[i]=0
+    }
+  }
+  return(data.frame(time, Intensity = y, Randon_intensity = w, inf_rate = r))
+}</code></pre>
 </div>
-<div id="functions" class="section level1">
-<h1>functions</h1>
-<p>The fuction for simulation of the measures and particle filter are called here.</p>
-<pre class="r"><code>source(&quot;logistic.R&quot;)
-source(&quot;particle_filter2.R&quot;)</code></pre>
+<div id="pf-derived-rate" class="section level2">
+<h2>PF-derived rate</h2>
+<p>A function was prepared to run the Particle Filter for estimating the <em>r</em><sub>y</sub> parameter.</p>
+<pre class="r"><code>SIR_filter = function(model, Nparti, measures, time,  guess_r, sd_meas, sd_par, sd_model, dt= 0.5){
+  realSmeas &lt;- measures
+
+# Initial guess for the estimation. Here we set as the first value of the synthetic measures vector
+  N = length(realSmeas)
+  y &lt;- numeric(N)
+  r &lt;- numeric(N)
+  dt = dt
+  Xinit &lt;- realSmeas[1]
+  S &lt;- Xinit
+  r[1] = guess_r
+  time = time
+  # particle number
+  
+  Nparti &lt;- Nparti
+  Nparti1 &lt;- (1 / Nparti)
+  
+  # Variables&#39; and model&#39;s error
+  
+  
+  Smeas &lt;- mean(realSmeas)
+  stdmeas &lt;- 0.25 * Smeas*(1-Smeas)
+  # Synthetic data error
+  stdmodel &lt;- 0.005 * S
+  # Model error
+  stdmodeldif &lt;- sd_par 
+  # &quot;parameter&quot;&quot; error
+  
+  
+  # Creating the weights&#39; vector
+  
+  wparti &lt;- numeric(Nparti)
+  
+  
+  # Creating the others vectors for the SIR-PF algorithm
+  
+  sinti &lt;- numeric(N)
+  sinti[1] &lt;- r[1] 
+  Snew &lt;- numeric(N)
+  Snew[1] &lt;- S
+  xestsir &lt;- numeric(N)
+  xestsir[1] &lt;- S
+  loop1 &lt;- c(1:(length(time) - 1))
+  loop2 &lt;- c(1:Nparti)
+  
+  xpartires &lt;- numeric(Nparti)
+  sintires &lt;- numeric(Nparti)
+  wpartires &lt;- numeric(Nparti)
+  xpartinew &lt;- numeric(Nparti)
+  sintinew &lt;- numeric(Nparti)
+  stdsint &lt;- numeric(N)
+  stdsir &lt;- numeric(N)
+  
+  aa &lt;- -1
+  bb &lt;- 1
+  for (k in loop1) { # loop to every time point
+    
+    for (l in loop2) { # loop to create the particles
+      
+      # Rondomic particle for &quot;intensity&quot; :
+      
+      Sold &lt;- Snew[k] + rnorm(1)*stdmodel
+      
+      # Rondomic particle for &quot;parameter&quot;:
+      
+      rr &lt;- aa + (bb - aa) * runif(1)
+      sintold &lt;- sinti[k] + rr * stdmodeldif 
+      
+      # Solving the direct problem for every particle
+      InitCond &lt;- c(Sold)
+      steps &lt;- seq(time[k], time[k + 1], by = dt)
+      parms &lt;- list(r = sintold)
+        
+      
+         # Logistic
+         if(model == 1){
+           ode_logi &lt;- ode(InitCond, steps, logi_fun, parms)  
+           y[k + 1] = last(ode_logi[,2])
+           }     
+         # gompertz
+         if(model == 2) {
+           ode_gompi =ode(InitCond, steps, gompi_fun, parms)  
+           y[k + 1] = last(ode_gompi[,2]) 
+         }
+       
+      if(model == 3) {
+        ode_mono =ode(InitCond, steps, mono_fun, parms)  
+        y[k + 1] = last(ode_mono[,2]) 
+      }
+      
+
+       xpartinew[l] &lt;- y[k + 1]
+      
+       sintinew[l] &lt;- sintold
+      
+      # Calculating the weigths
+      
+      wparti[l] &lt;- exp(-((xpartinew[l] - realSmeas[k+1]) / stdmeas)^2)
+    }
+    
+    # Setting the weigths between 0 and 1
+    
+    wtotal &lt;- sum(wparti)
+    
+    wpartin &lt;- numeric(Nparti)
+    wpartin &lt;- wparti / wtotal
+    
+    
+    # Resampling
+    
+    cresa &lt;- numeric(Nparti)
+    uresa &lt;- numeric(Nparti)
+    cresa[1] &lt;- wpartin[1]
+    
+    for (i in 2:Nparti) {
+      cresa[i] &lt;- cresa[i - 1] + wpartin[i]
+    }
+    iresa &lt;- 1
+    uresa[1] &lt;- runif(1) * Nparti1
+    
+    for (j in 1:Nparti) {
+      uresa[j] &lt;- uresa[1] + Nparti1 * (j - 1)
+      
+      while (uresa[j] &gt; cresa[iresa]) {
+        iresa &lt;- iresa + 1
+      }
+      
+      xpartires[j] &lt;- xpartinew[iresa]
+      sintires[j] &lt;- sintinew[iresa]
+      wpartires[j] &lt;- Nparti1
+    }
+    
+    Snew[k + 1] &lt;- mean(xpartires)
+    sinti[k + 1] &lt;- mean(sintires)
+    
+    stdsint[k + 1] &lt;- sd(sintires)
+    xestsir[k + 1] &lt;- mean(xpartires)
+    
+    stdsir[k + 1] &lt;- sd(xpartires)
+    xpartiold &lt;- xpartires
+    
+    # Error atualization
+    
+    stdmodeldif &lt;- sd_par 
+    stdmodel &lt;- sd_model * Snew[k + 1]
+    stdmeas &lt;- sd_meas * realSmeas[k + 1]*(1-realSmeas[k + 1])
+  }
+  
+  lbdsiro &lt;- sinti - 2.576 *  stdsint
+  ubdsiro &lt;- sinti + 2.576 * stdsint
+  lbdsir &lt;- xestsir - 2.576 * stdsir
+  ubdsir &lt;- xestsir + 2.576 * stdsir
+  
+  final &lt;- data.frame(time, realSmeas, xestsir, lbdsir, ubdsir, sinti, lbdsiro, ubdsiro)
+  
+  return(final)
+  }</code></pre>
 </div>
-<div id="estimation-for-logistic-model" class="section level1">
-<h1>Estimation for logistic model</h1>
-<p>Here we set the initial values for simulation of each type of infection rate behavior.</p>
-<pre class="r"><code>logi_setup = matrix(c(&quot;Constant&quot;, 0.2,
+<div id="simulation-of-time-varying-r" class="section level2">
+<h2>Simulation of time-varying r</h2>
+<p>We need to set the initial values for simulating <em>r</em><sub>y</sub> of various temporal patterns.</p>
+<pre class="r"><code>logi_setup &lt;- matrix(c(
+  &quot;Constant&quot;, 0.2,
   &quot;Increasing&quot;, 0.05,
   &quot;Decreasing&quot;, 0.3,
   &quot;Sinusoidal&quot;, 0.2,
-  &quot;Random&quot;, 0.2),
-  nrow=5,
-  ncol=,
-  byrow = TRUE) </code></pre>
-<p>Run the particle filter for each type of infection rate, for each time interval and noise</p>
-<pre class="r"><code>noise = c(0.1, 0.25)
+  &quot;Random&quot;, 0.2
+),
+nrow = 5,
+ncol = ,
+byrow = TRUE
+)</code></pre>
+<p>We will now run the Particle Filter to obtain the estimates of both the measures and the parameters for each type of infection rate, time interval and noise. For such, we will use a for-loop approach to generate a dataframe. Noise is represented by j, time interval by k and <em>r</em><sub>y</sub> pattern by i.</p>
+<pre class="r"><code>noise &lt;- c(0.1, 0.25)
 
-logistic_all3 = data.frame()
-for(j in 1:2){
-logistic_all2 = data.frame()
-for(k in seq(1,10, by = 2)){
+logistic_all3 &lt;- data.frame()
+for (j in 1:2) {
+  logistic_all2 &lt;- data.frame()
+  for (k in seq(1, 10, by = 2)) {
+    logistic_all &lt;- data.frame()
+    for (i in 1:5) {
+      set.seed(5)
+      data &lt;- logistic(N = 60, dt = 0.5, y0 = 0.001, r = as.numeric(logi_setup[i, 2]), sd = noise[j], inf = i)
+      data &lt;- data %&gt;%
+        filter(time %in% c(seq(0, 60, by = k)))
+      data_logi &lt;- data.frame(
+        infection_type = as.factor(logi_setup[i, 1]),
+        SIR_filter(
+          model = 1,
+          guess_r = as.numeric(logi_setup[i, 2]),
+          Nparti = 1000,
+          measures = data$Randon_intensity,
+          time = data$time,
+          sd_meas = 0.25,
+          sd_par = 0.15,
+          sd_model = 0.005
+        ),
+        y = data$Intensity,
+        inf_rate = data$inf_rate
+      )
 
-logistic_all = data.frame()
-for( i in 1:5){
-  set.seed(5)
-data = logistic(N= 60, dt=0.5, y0=0.001, r=as.numeric(logi_setup[i,2]), sd = noise[j], inf = i)
-data = data %&gt;% 
-  filter(time %in% c(seq(0,60, by = k)))
-data_logi = data.frame(infection_type = as.factor(logi_setup[i,1]),
-                   SIR_filter(model = 1,
-                   guess_r = as.numeric(logi_setup[i,2]),
-                   Nparti=1000,
-                   measures = data$Randon_intensity,
-                   time = data$time,
-                   sd_meas = 0.25,
-                   sd_par = 0.15,
-                   sd_model = 0.005),
-                   y = data$Intensity,
-                   inf_rate = data$inf_rate)  
+      logistic_all &lt;- logistic_all %&gt;%
+        bind_rows(data_logi)
+    }
 
-logistic_all = logistic_all %&gt;% 
-  bind_rows(data_logi)
-}
+    logistic_all &lt;- logistic_all %&gt;%
+      mutate(time_interval = k)
 
-logistic_all = logistic_all %&gt;% 
-  mutate(time_interval = k)
-  
-logistic_all2 = logistic_all2 %&gt;% 
-  bind_rows(logistic_all) 
-}
-  logistic_all2 = logistic_all2 %&gt;% 
+    logistic_all2 &lt;- logistic_all2 %&gt;%
+      bind_rows(logistic_all)
+  }
+  logistic_all2 &lt;- logistic_all2 %&gt;%
     mutate(noise = noise[j])
-  
- logistic_all3 =  logistic_all3 %&gt;% 
-   bind_rows(logistic_all2) 
-   
+
+  logistic_all3 &lt;- logistic_all3 %&gt;%
+    bind_rows(logistic_all2)
 }</code></pre>
-<p>Changing the names of the noise and time interval</p>
-<pre class="r"><code>logistic_all3 = logistic_all3 %&gt;% 
-  mutate(noise2 = noise) %&gt;% 
-  mutate(noise = case_when(noise == 0.10 ~ &quot;\u03b1 =  0.10&quot;,
-                           noise == 0.25 ~ &quot;\u03b1 =  0.25&quot;)) %&gt;% 
-   mutate(time_interval2 = time_interval) %&gt;% 
-  mutate(time_interval = case_when(time_interval == 1 ~ &quot;\u0394t =  1&quot;,
-                                   time_interval == 3 ~ &quot;\u0394t =  3&quot;,
-                                   time_interval == 5 ~ &quot;\u0394t =  5&quot;,
-                                   time_interval == 7 ~ &quot;\u0394t =  7&quot;,
-                                   time_interval == 9 ~ &quot;\u0394t =  9&quot;))</code></pre>
-<p>Data</p>
-<pre class="r"><code>head (logistic_all3)</code></pre>
+</div>
+<div id="visualizing-the-dpcs" class="section level2">
+<h2>Visualizing the DPCs</h2>
+<p>Now that we produced the DPC data we can visualize each curve for the combination <em>r</em><sub>y</sub> pattern, noise in the measure and time interval. But first we need to correct names of levels of factors which need special characters like alpha and delta.</p>
+<pre class="r"><code>logistic_all3 &lt;- logistic_all3 %&gt;%
+  mutate(noise2 = noise) %&gt;%
+  mutate(noise = case_when(
+    noise == 0.10 ~ &quot;\u03b1 =  0.10&quot;,
+    noise == 0.25 ~ &quot;\u03b1 =  0.25&quot;
+  )) %&gt;%
+  mutate(time_interval2 = time_interval) %&gt;%
+  mutate(time_interval = case_when(
+    time_interval == 1 ~ &quot;\u0394t =  1&quot;,
+    time_interval == 3 ~ &quot;\u0394t =  3&quot;,
+    time_interval == 5 ~ &quot;\u0394t =  5&quot;,
+    time_interval == 7 ~ &quot;\u0394t =  7&quot;,
+    time_interval == 9 ~ &quot;\u0394t =  9&quot;
+  ))
+
+head(logistic_all3)</code></pre>
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
-{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":["infection_type"],"name":[1],"type":["chr"],"align":["left"]},{"label":["time"],"name":[2],"type":["dbl"],"align":["right"]},{"label":["realSmeas"],"name":[3],"type":["dbl"],"align":["right"]},{"label":["xestsir"],"name":[4],"type":["dbl"],"align":["right"]},{"label":["lbdsir"],"name":[5],"type":["dbl"],"align":["right"]},{"label":["ubdsir"],"name":[6],"type":["dbl"],"align":["right"]},{"label":["sinti"],"name":[7],"type":["dbl"],"align":["right"]},{"label":["lbdsiro"],"name":[8],"type":["dbl"],"align":["right"]},{"label":["ubdsiro"],"name":[9],"type":["dbl"],"align":["right"]},{"label":["y"],"name":[10],"type":["dbl"],"align":["right"]},{"label":["inf_rate"],"name":[11],"type":["dbl"],"align":["right"]},{"label":["time_interval"],"name":[12],"type":["chr"],"align":["left"]},{"label":["noise"],"name":[13],"type":["chr"],"align":["left"]},{"label":["noise2"],"name":[14],"type":["dbl"],"align":["right"]},{"label":["time_interval2"],"name":[15],"type":["dbl"],"align":["right"]}],"data":[{"1":"Constant","2":"0","3":"0.0008864554","4":"0.0008864554","5":"0.0008864554","6":"0.0008864554","7":"0.2000000","8":"0.200000000","9":"0.2000000","10":"0.001000000","11":"0.2","12":"<U+0394>t =  1","13":"a =  0.10","14":"0.1","15":"1","_rn_":"1"},{"1":"Constant","2":"1","3":"0.0011507812","4":"0.0010892302","5":"0.0008454319","6":"0.0013330285","7":"0.2023118","8":"-0.020822909","9":"0.4254465","10":"0.001221333","11":"0.2","12":"<U+0394>t =  1","13":"a =  0.10","14":"0.1","15":"1","_rn_":"2"},{"1":"Constant","2":"2","3":"0.0013783820","4":"0.0013472224","5":"0.0010604335","6":"0.0016340113","7":"0.2091434","8":"-0.004167749","9":"0.4224546","10":"0.001491582","11":"0.2","12":"<U+0394>t =  1","13":"a =  0.10","14":"0.1","15":"1","_rn_":"3"},{"1":"Constant","2":"3","3":"0.0014392741","4":"0.0016091436","5":"0.0013021273","6":"0.0019161600","7":"0.1751678","8":"-0.013069651","9":"0.3634053","10":"0.001821520","11":"0.2","12":"<U+0394>t =  1","13":"a =  0.10","14":"0.1","15":"1","_rn_":"4"},{"1":"Constant","2":"4","3":"0.0019418943","4":"0.0019247086","5":"0.0015243033","6":"0.0023251140","7":"0.1759099","8":"-0.031309817","9":"0.3831296","10":"0.002224278","11":"0.2","12":"<U+0394>t =  1","13":"a =  0.10","14":"0.1","15":"1","_rn_":"5"},{"1":"Constant","2":"5","3":"0.0026605700","4":"0.0024029654","5":"0.0019604022","6":"0.0028455285","7":"0.2195852","8":"0.031013399","9":"0.4081570","10":"0.002715849","11":"0.2","12":"<U+0394>t =  1","13":"a =  0.10","14":"0.1","15":"1","_rn_":"6"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":["infection_type"],"name":[1],"type":["chr"],"align":["left"]},{"label":["time"],"name":[2],"type":["dbl"],"align":["right"]},{"label":["realSmeas"],"name":[3],"type":["dbl"],"align":["right"]},{"label":["xestsir"],"name":[4],"type":["dbl"],"align":["right"]},{"label":["lbdsir"],"name":[5],"type":["dbl"],"align":["right"]},{"label":["ubdsir"],"name":[6],"type":["dbl"],"align":["right"]},{"label":["sinti"],"name":[7],"type":["dbl"],"align":["right"]},{"label":["lbdsiro"],"name":[8],"type":["dbl"],"align":["right"]},{"label":["ubdsiro"],"name":[9],"type":["dbl"],"align":["right"]},{"label":["y"],"name":[10],"type":["dbl"],"align":["right"]},{"label":["inf_rate"],"name":[11],"type":["dbl"],"align":["right"]},{"label":["time_interval"],"name":[12],"type":["chr"],"align":["left"]},{"label":["noise"],"name":[13],"type":["chr"],"align":["left"]},{"label":["noise2"],"name":[14],"type":["dbl"],"align":["right"]},{"label":["time_interval2"],"name":[15],"type":["dbl"],"align":["right"]}],"data":[{"1":"Constant","2":"0","3":"0.0008864554","4":"0.0008864554","5":"0.0008864554","6":"0.0008864554","7":"0.2000000","8":"0.200000000","9":"0.2000000","10":"0.001000000","11":"0.2","12":"Δt =  1","13":"α =  0.10","14":"0.1","15":"1","_rn_":"1"},{"1":"Constant","2":"1","3":"0.0011507812","4":"0.0010892302","5":"0.0008454319","6":"0.0013330285","7":"0.2023118","8":"-0.020822909","9":"0.4254465","10":"0.001221333","11":"0.2","12":"Δt =  1","13":"α =  0.10","14":"0.1","15":"1","_rn_":"2"},{"1":"Constant","2":"2","3":"0.0013783820","4":"0.0013472224","5":"0.0010604335","6":"0.0016340113","7":"0.2091434","8":"-0.004167749","9":"0.4224546","10":"0.001491582","11":"0.2","12":"Δt =  1","13":"α =  0.10","14":"0.1","15":"1","_rn_":"3"},{"1":"Constant","2":"3","3":"0.0014392741","4":"0.0016091436","5":"0.0013021273","6":"0.0019161600","7":"0.1751678","8":"-0.013069651","9":"0.3634053","10":"0.001821520","11":"0.2","12":"Δt =  1","13":"α =  0.10","14":"0.1","15":"1","_rn_":"4"},{"1":"Constant","2":"4","3":"0.0019418943","4":"0.0019247086","5":"0.0015243033","6":"0.0023251140","7":"0.1759099","8":"-0.031309817","9":"0.3831296","10":"0.002224278","11":"0.2","12":"Δt =  1","13":"α =  0.10","14":"0.1","15":"1","_rn_":"5"},{"1":"Constant","2":"5","3":"0.0026605700","4":"0.0024029654","5":"0.0019604022","6":"0.0028455285","7":"0.2195852","8":"0.031013399","9":"0.4081570","10":"0.002715849","11":"0.2","12":"Δt =  1","13":"α =  0.10","14":"0.1","15":"1","_rn_":"6"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
   </script>
 </div>
-<div id="visualization" class="section level2">
-<h2>Visualization</h2>
-<p>Vizualization of the Noised Disease progress curves</p>
-<pre class="r"><code>logistic_all3 %&gt;% 
-  ggplot()+
-  geom_line(aes(time,realSmeas, color = infection_type),
-            size = 1.2)+
+<p>We can then proceed to produce a panel of plots for each of the 50 DPCs.</p>
+<pre class="r"><code>logistic_all3 %&gt;%
+  ggplot() +
+  geom_line(aes(time, realSmeas, color = infection_type),
+    size = 1.2
+  ) +
 
-  facet_grid(time_interval+noise~infection_type)+
-  scale_fill_manual(values = &quot;gray&quot;)+
-  scale_color_colorblind()+
-  labs(x = &quot;Time&quot;,
-       y = &quot;Disease intensity&quot;)+
-  theme(legend.position = &quot;none&quot;,text = element_text(size = 16),
-        strip.text = element_text(color = &quot;black&quot;),
-        strip.background = element_rect(fill=&quot;white&quot;))+
-  scale_y_continuous(breaks = seq(0,1, 0.25))</code></pre>
-<p><img src="main_code_files/figure-html/unnamed-chunk-8-1.png" width="960" /></p>
-<pre class="r"><code>ggsave(&quot;figs/logistic_noised.png&quot;, dpi=300, height = 12, width = 8)</code></pre>
-<p>Vizualization of the parameter estimation</p>
-<pre class="r"><code>logistic_all3 %&gt;% 
-  ggplot()+
+  facet_grid(time_interval + noise ~ infection_type) +
+  scale_fill_manual(values = &quot;gray&quot;) +
+  scale_color_colorblind() +
+  labs(
+    x = &quot;Time&quot;,
+    y = &quot;Disease intensity&quot;
+  ) +
+  theme(
+    legend.position = &quot;none&quot;, text = element_text(size = 16),
+    strip.text = element_text(color = &quot;black&quot;),
+    strip.background = element_rect(fill = &quot;white&quot;)
+  ) +
+  scale_y_continuous(breaks = seq(0, 1, 0.25))</code></pre>
+<p><img src="main_code_files/figure-html/unnamed-chunk-7-1.png" width="960" /></p>
+<pre class="r"><code>ggsave(&quot;figs/logistic_noised.png&quot;, dpi = 300, height = 12, width = 8)</code></pre>
+<p>Now a similar panel depicting the simulated <em>r</em><sub>y</sub> values (solid colored line) and the respective point-estimate (and respective 95% CI)using the particle filter method.</p>
+<pre class="r"><code>logistic_all3 %&gt;%
+  ggplot() +
   geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = &quot;Ic 99%&quot;), alpha = 0.5, stat = &quot;identity&quot;) +
-  geom_line(aes(time,inf_rate, color = infection_type),
-            size = 1.2)+
-  geom_point(aes(time,sinti),
-             size = 2, alpha = 1)+
-  facet_grid(time_interval+noise~infection_type, scales = &quot;free_y&quot;)+
-  scale_fill_manual(values = &quot;gray&quot;)+
-  scale_color_colorblind()+
-  labs(x = &quot;Time&quot;,
-       y = &quot;Apparent infection rate&quot;)+
-  theme(legend.position = &quot;none&quot;,text = element_text(size = 14),
-        strip.text = element_text(color = &quot;black&quot;),
-        strip.background = element_rect(fill=&quot;white&quot;))+
-  scale_y_continuous(breaks = seq(-2,2, 0.2))</code></pre>
-<p><img src="main_code_files/figure-html/unnamed-chunk-9-1.png" width="960" /></p>
-<pre class="r"><code>ggsave(&quot;figs/logistic_air.png&quot;, dpi=300, height = 12, width = 8)</code></pre>
-<p>Visualization of the disease intensity estimation</p>
-<pre class="r"><code>logistic_all3 %&gt;% 
-  ggplot()+
+  geom_line(aes(time, inf_rate, color = infection_type),
+    size = 1.2
+  ) +
+  geom_point(aes(time, sinti),
+    size = 2, alpha = 1
+  ) +
+  facet_grid(time_interval + noise ~ infection_type, scales = &quot;free_y&quot;) +
+  scale_fill_manual(values = &quot;gray&quot;) +
+  scale_color_colorblind() +
+  labs(
+    x = &quot;Time&quot;,
+    y = &quot;Apparent infection rate&quot;
+  ) +
+  theme(
+    legend.position = &quot;none&quot;, text = element_text(size = 14),
+    strip.text = element_text(color = &quot;black&quot;),
+    strip.background = element_rect(fill = &quot;white&quot;)
+  ) +
+  scale_y_continuous(breaks = seq(-2, 2, 0.2))</code></pre>
+<p><img src="main_code_files/figure-html/unnamed-chunk-8-1.png" width="960" /></p>
+<pre class="r"><code>ggsave(&quot;figs/logistic_air.png&quot;, dpi = 300, height = 12, width = 8)</code></pre>
+<p>Besides the <em>r</em><sub>y</sub> parameter estimation, the particle filter also estimates the measures <em>y</em> at each time point. Let’s have a look at these estimates (and respective 95%CI) together with the synthetic measures (the solid lines).</p>
+<pre class="r"><code>logistic_all3 %&gt;%
+  ggplot() +
   geom_ribbon(aes(time, ymin = (ubdsir), ymax = (lbdsir), fill = &quot;Ic 99%&quot;), alpha = 0.5, stat = &quot;identity&quot;) +
-  geom_line(aes(time,y, color = infection_type),
-            size = 1.2)+
-  geom_point(aes(time,xestsir),
-              size = 1.5, alpha = 0.7)+
-  facet_grid(time_interval+noise~infection_type)+
-  scale_fill_manual(values = &quot;gray&quot;)+
-  scale_color_colorblind()+
-  labs(x = &quot;Time&quot;,
-       y = &quot;Disease intensity&quot;)+
-  theme(legend.position = &quot;none&quot;,text = element_text(size = 16),
-        strip.text = element_text(color = &quot;black&quot;),
-        strip.background = element_rect(fill=&quot;white&quot;))+
-  scale_y_continuous(breaks = seq(0,1, 0.25))</code></pre>
-<p><img src="main_code_files/figure-html/unnamed-chunk-10-1.png" width="960" /></p>
-<pre class="r"><code>ggsave(&quot;figs/logistic_curve.png&quot;, dpi=300, height = 12, width = 8)</code></pre>
-</div>
-<div id="acuracy" class="section level2">
-<h2>Acuracy</h2>
-<pre class="r"><code>a = logistic_all3 %&gt;% 
-  group_by(infection_type,time_interval2, noise) %&gt;%
-  mutate(rmsi = (inf_rate - sinti)^2,
-         maei = abs(inf_rate - sinti)) %&gt;% 
-  summarise(RMS = sqrt((1/(length(inf_rate)))*sum(rmsi, na.rm = T))) %&gt;% 
+  geom_line(aes(time, y, color = infection_type),
+    size = 1.2
+  ) +
+  geom_point(aes(time, xestsir),
+    size = 1.5, alpha = 0.7
+  ) +
+  facet_grid(time_interval + noise ~ infection_type) +
+  scale_fill_manual(values = &quot;gray&quot;) +
+  scale_color_colorblind() +
+  labs(
+    x = &quot;Time&quot;,
+    y = &quot;Disease intensity&quot;
+  ) +
+  theme(
+    legend.position = &quot;none&quot;, text = element_text(size = 16),
+    strip.text = element_text(color = &quot;black&quot;),
+    strip.background = element_rect(fill = &quot;white&quot;)
+  ) +
+  scale_y_continuous(breaks = seq(0, 1, 0.25))</code></pre>
+<p><img src="main_code_files/figure-html/unnamed-chunk-9-1.png" width="960" /></p>
+<pre class="r"><code>ggsave(&quot;figs/logistic_curve.png&quot;, dpi = 300, height = 12, width = 8)</code></pre>
+<div id="estimation-error" class="section level3">
+<h3>Estimation error</h3>
+<p>The accuracy of the estimates of <em>r</em><sub>y</sub>, or how close they were to the simulated <em>r</em><sub>y</sub> was evaluated based on the mean squared error statistic. The code below will produce a dataframe with the respective RMSE for each epidemics.</p>
+<pre class="r"><code>RMSE_data &lt;- logistic_all3 %&gt;%
+  group_by(infection_type, time_interval2, noise) %&gt;%
+  mutate(
+    rmsi = (inf_rate - sinti)^2,
+    maei = abs(inf_rate - sinti)
+  ) %&gt;%
+  summarise(RMS = sqrt((1 / (length(inf_rate))) * sum(rmsi, na.rm = T))) %&gt;%
   mutate(model = &quot;Logistic&quot;)
 
-acuracy_logi = a
+acuracy_logi &lt;- RMSE_data
 
 head(acuracy_logi)</code></pre>
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
-{"columns":[{"label":["infection_type"],"name":[1],"type":["chr"],"align":["left"]},{"label":["time_interval2"],"name":[2],"type":["dbl"],"align":["right"]},{"label":["noise"],"name":[3],"type":["chr"],"align":["left"]},{"label":["RMS"],"name":[4],"type":["dbl"],"align":["right"]},{"label":["model"],"name":[5],"type":["chr"],"align":["left"]}],"data":[{"1":"Constant","2":"1","3":"a =  0.10","4":"0.02735908","5":"Logistic"},{"1":"Constant","2":"1","3":"a =  0.25","4":"0.06103426","5":"Logistic"},{"1":"Constant","2":"3","3":"a =  0.10","4":"0.02837804","5":"Logistic"},{"1":"Constant","2":"3","3":"a =  0.25","4":"0.05043900","5":"Logistic"},{"1":"Constant","2":"5","3":"a =  0.10","4":"0.02997905","5":"Logistic"},{"1":"Constant","2":"5","3":"a =  0.25","4":"0.06339998","5":"Logistic"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+{"columns":[{"label":["infection_type"],"name":[1],"type":["chr"],"align":["left"]},{"label":["time_interval2"],"name":[2],"type":["dbl"],"align":["right"]},{"label":["noise"],"name":[3],"type":["chr"],"align":["left"]},{"label":["RMS"],"name":[4],"type":["dbl"],"align":["right"]},{"label":["model"],"name":[5],"type":["chr"],"align":["left"]}],"data":[{"1":"Constant","2":"1","3":"α =  0.10","4":"0.02735908","5":"Logistic"},{"1":"Constant","2":"1","3":"α =  0.25","4":"0.06103426","5":"Logistic"},{"1":"Constant","2":"3","3":"α =  0.10","4":"0.02837804","5":"Logistic"},{"1":"Constant","2":"3","3":"α =  0.25","4":"0.05043900","5":"Logistic"},{"1":"Constant","2":"5","3":"α =  0.10","4":"0.02997905","5":"Logistic"},{"1":"Constant","2":"5","3":"α =  0.25","4":"0.06339998","5":"Logistic"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
   </script>
 </div>
 </div>
 </div>
-<div id="calculate-the-apparent-infection-rate" class="section level1">
-<h1>Calculate the Apparent infection rate</h1>
-<p>Using the following equation we calculated the time virying r</p>
+<div id="logit-derived-rate" class="section level2">
+<h2>Logit-derived rate</h2>
+<p>The following equation is commonly used to obtain <em>r</em><sub>y</sub> between two times, given the two measures are known.</p>
 <p><span class="math display">\[ r_{i+1} = \frac {[ln(\frac {y_{i+1}}{1-y_{i+1}}) -ln(\frac {y_{i}}{1-y_{i}}) ]}{t_{i+1} - t_{i}} \]</span></p>
-<pre class="r"><code>calc_r_log = logistic_all3 %&gt;%
-  group_by(infection_type,time_interval,noise) %&gt;% 
-  mutate(r_calc = (log(realSmeas/(1-realSmeas)) - log((lag(realSmeas,1)/(1-(lag(realSmeas,1))))))/(time - lag(time,1))) %&gt;% 
+<p>We will calculate them all for each curve the same way we did for the PF-estimated parameters and then visualize.</p>
+<pre class="r"><code>calc_r_log &lt;- logistic_all3 %&gt;%
+  group_by(infection_type, time_interval, noise) %&gt;%
+  mutate(r_calc = (log(realSmeas / (1 - realSmeas)) - log((lag(realSmeas, 1) / (1 - (lag(realSmeas, 1)))))) / (time - lag(time, 1))) %&gt;%
   mutate(model = &quot;Logistic&quot;)
 
-
-calculated_r = calc_r_log
-head(calculated_r %&gt;% 
-       ungroup() %&gt;% 
-       select(infection_type, time,noise,time_interval2, r_calc))</code></pre>
+ 
+calculated_r &lt;- calc_r_log
+head(calculated_r %&gt;%
+  ungroup() %&gt;%
+  select(infection_type, time, noise, time_interval2, r_calc))</code></pre>
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
-{"columns":[{"label":["infection_type"],"name":[1],"type":["chr"],"align":["left"]},{"label":["time"],"name":[2],"type":["dbl"],"align":["right"]},{"label":["noise"],"name":[3],"type":["chr"],"align":["left"]},{"label":["time_interval2"],"name":[4],"type":["dbl"],"align":["right"]},{"label":["r_calc"],"name":[5],"type":["dbl"],"align":["right"]}],"data":[{"1":"Constant","2":"0","3":"a =  0.10","4":"1","5":"NA"},{"1":"Constant","2":"1","3":"a =  0.10","4":"1","5":"0.26123013"},{"1":"Constant","2":"2","3":"a =  0.10","4":"1","5":"0.18069717"},{"1":"Constant","2":"3","3":"a =  0.10","4":"1","5":"0.04328951"},{"1":"Constant","2":"4","3":"a =  0.10","4":"1","5":"0.30002856"},{"1":"Constant","2":"5","3":"a =  0.10","4":"1","5":"0.31559676"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+{"columns":[{"label":["infection_type"],"name":[1],"type":["chr"],"align":["left"]},{"label":["time"],"name":[2],"type":["dbl"],"align":["right"]},{"label":["noise"],"name":[3],"type":["chr"],"align":["left"]},{"label":["time_interval2"],"name":[4],"type":["dbl"],"align":["right"]},{"label":["r_calc"],"name":[5],"type":["dbl"],"align":["right"]}],"data":[{"1":"Constant","2":"0","3":"α =  0.10","4":"1","5":"NA"},{"1":"Constant","2":"1","3":"α =  0.10","4":"1","5":"0.26123013"},{"1":"Constant","2":"2","3":"α =  0.10","4":"1","5":"0.18069717"},{"1":"Constant","2":"3","3":"α =  0.10","4":"1","5":"0.04328951"},{"1":"Constant","2":"4","3":"α =  0.10","4":"1","5":"0.30002856"},{"1":"Constant","2":"5","3":"α =  0.10","4":"1","5":"0.31559676"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
   </script>
 </div>
-<div id="visualization-1" class="section level2">
-<h2>Visualization</h2>
 <pre class="r"><code>calculated_r %&gt;%
-  ggplot()+
-  geom_line(aes(time,inf_rate, color = infection_type),
-            size = 1.2)+
-  geom_point(aes(time,r_calc),
-             size = 2,
-             alpha = 1)+
-  facet_grid(time_interval+noise~infection_type, scales = &quot;free_y&quot;)+
-  scale_fill_viridis()+
-  scale_color_colorblind()+
-  labs(x = &quot;Time&quot;,
-       y = &quot;Apparent infection rate&quot;)+
-  guides(color= guide_legend(&quot;none&quot;))+
-  theme(text = element_text(size = 14), legend.position = &quot;none&quot;,
-        strip.text = element_text(color = &quot;black&quot;),
-        strip.background = element_rect(fill=&quot;white&quot;))</code></pre>
+  ggplot() +
+  geom_line(aes(time, inf_rate, color = infection_type),
+    size = 1.2
+  ) +
+  geom_point(aes(time, r_calc),
+    size = 2,
+    alpha = 1
+  ) +
+  facet_grid(time_interval + noise ~ infection_type, scales = &quot;free_y&quot;) +
+  scale_fill_viridis() +
+  scale_color_colorblind() +
+  labs(
+    x = &quot;Time&quot;,
+    y = &quot;Apparent infection rate&quot;
+  ) +
+  guides(color = guide_legend(&quot;none&quot;)) +
+  theme(
+    text = element_text(size = 14), legend.position = &quot;none&quot;,
+    strip.text = element_text(color = &quot;black&quot;),
+    strip.background = element_rect(fill = &quot;white&quot;)
+  )</code></pre>
 <pre><code>## Warning: Removed 50 rows containing missing values (geom_point).</code></pre>
-<p><img src="main_code_files/figure-html/unnamed-chunk-13-1.png" width="960" /></p>
-<pre class="r"><code> ggsave(&quot;figs/r_calc_logi.png&quot;, dpi=300, height = 12, width = 8)</code></pre>
+<p><img src="main_code_files/figure-html/unnamed-chunk-12-1.png" width="960" /></p>
+<pre class="r"><code>ggsave(&quot;figs/r_calc_logi.png&quot;, dpi = 300, height = 12, width = 8)</code></pre>
 <pre><code>## Warning: Removed 50 rows containing missing values (geom_point).</code></pre>
-</div>
-<div id="acuracy-1" class="section level2">
-<h2>Acuracy</h2>
-<pre class="r"><code>acuracy_calc = calculated_r%&gt;% 
-  filter(r_calc != is.na(r_calc)) %&gt;% 
-  group_by(infection_type, time_interval2,noise) %&gt;% 
-  mutate(rmsi = (inf_rate - r_calc)^2,
-         maei = abs(inf_rate - r_calc)) %&gt;% 
-  summarise(RMS = sqrt((1/(length(inf_rate)))*sum(rmsi, na.rm = T)))
+<div id="error" class="section level3">
+<h3>Error</h3>
+<pre class="r"><code>acuracy_calc &lt;- calculated_r %&gt;%
+  filter(r_calc != is.na(r_calc)) %&gt;%
+  group_by(infection_type, time_interval2, noise) %&gt;%
+  mutate(
+    rmsi = (inf_rate - r_calc)^2,
+    maei = abs(inf_rate - r_calc)
+  ) %&gt;%
+  summarise(RMS = sqrt((1 / (length(inf_rate))) * sum(rmsi, na.rm = T)))
 head(acuracy_calc)</code></pre>
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
-{"columns":[{"label":["infection_type"],"name":[1],"type":["chr"],"align":["left"]},{"label":["time_interval2"],"name":[2],"type":["dbl"],"align":["right"]},{"label":["noise"],"name":[3],"type":["chr"],"align":["left"]},{"label":["RMS"],"name":[4],"type":["dbl"],"align":["right"]}],"data":[{"1":"Constant","2":"1","3":"a =  0.10","4":"0.15339411"},{"1":"Constant","2":"1","3":"a =  0.25","4":"0.39699822"},{"1":"Constant","2":"3","3":"a =  0.10","4":"0.04584199"},{"1":"Constant","2":"3","3":"a =  0.25","4":"0.12825586"},{"1":"Constant","2":"5","3":"a =  0.10","4":"0.04143348"},{"1":"Constant","2":"5","3":"a =  0.25","4":"0.11064294"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+{"columns":[{"label":["infection_type"],"name":[1],"type":["chr"],"align":["left"]},{"label":["time_interval2"],"name":[2],"type":["dbl"],"align":["right"]},{"label":["noise"],"name":[3],"type":["chr"],"align":["left"]},{"label":["RMS"],"name":[4],"type":["dbl"],"align":["right"]}],"data":[{"1":"Constant","2":"1","3":"α =  0.10","4":"0.15339411"},{"1":"Constant","2":"1","3":"α =  0.25","4":"0.39699822"},{"1":"Constant","2":"3","3":"α =  0.10","4":"0.04584199"},{"1":"Constant","2":"3","3":"α =  0.25","4":"0.12825586"},{"1":"Constant","2":"5","3":"α =  0.10","4":"0.04143348"},{"1":"Constant","2":"5","3":"α =  0.25","4":"0.11064294"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
   </script>
 </div>
 </div>
 </div>
-<div id="visualization-2" class="section level1">
-<h1>Visualization</h1>
-<div id="rms" class="section level2">
-<h2>RMS</h2>
-<p>plotting the RMS</p>
-<pre class="r"><code>ggplot()+
-  geom_line(data =acuracy_calc, aes(time_interval2, RMS, color = &quot;Calculated&quot;, linetype = as.factor(noise)),
-            size = 1)+
-  geom_point(data =acuracy_calc, aes(time_interval2, RMS, color = &quot;Calculated&quot;),
-            size = 2.5)+
-  geom_line(data =acuracy_logi, aes(time_interval2, RMS, color = &quot;Estimated&quot;, linetype = as.factor(noise)),
-            size = 1)+
-  geom_point(data =acuracy_logi, aes(time_interval2, RMS, color = &quot;Estimated&quot;,),
-            size = 2.5)+
-  scale_color_colorblind(&quot;r&quot;)+
-  scale_x_continuous(breaks = seq(1,9,by=2))+
-  scale_linetype_manual(values = c(&quot;solid&quot;,&quot;dashed&quot;))+
-  facet_grid(~infection_type)+
-  guides(linetype=guide_legend(keywidth = 2, keyheight = 1),
-         color=guide_legend(keywidth = 2, keyheight = 1))+
-  labs(x = &quot;Time interval&quot;, y = &quot;RMSE&quot;, linetype  = &quot;Noise&quot;)+
-  theme(legend.position = &quot;bottom&quot;,
-        text = element_text(size = 14),
-        strip.text = element_text(color = &quot;black&quot;),
-        strip.background = element_rect(fill=&quot;white&quot;))</code></pre>
-<p><img src="main_code_files/figure-html/unnamed-chunk-15-1.png" width="672" /></p>
-<pre class="r"><code>ggsave(&quot;figs/RMS.png&quot;, dpi=300, height = 5, width = 11)</code></pre>
-</div>
-<div id="disease-progress-curves" class="section level2">
-<h2>Disease progress curves</h2>
-<pre class="r"><code>plot_grid(
-plot_grid(logistic_all3 %&gt;%
-  filter(time_interval2==3 ) %&gt;% 
-  ggplot()+
-    geom_point(aes(time,y, color = infection_type),size = 2.5, alpha = 1)+
-    geom_line(aes(time,y, color = infection_type),size = 1, alpha = .6)+
-    scale_fill_manual(values = &quot;gray&quot;)+
-    scale_color_colorblind()+
-    labs(x = &quot;Time&quot;,
-         y = &quot;Disease intensity&quot;, color = &quot;AIR&quot;)+
-    theme(text = element_text(size = 16),legend.position = &quot;none&quot;, axis.title.x = element_text(color =&quot;white&quot;))+
-    scale_y_continuous(breaks = seq(0,1, 0.25)),
 
-logistic_all3 %&gt;%
-  filter(time_interval2==3 &amp; noise2 == 0.1 ) %&gt;% 
-  ggplot()+
-  geom_point(aes(time,realSmeas, color = infection_type),size = 2.5, alpha = 1)+
-    geom_line(aes(time,realSmeas, color = infection_type),size = 1, alpha = .6)+
-    scale_fill_manual(values = &quot;gray&quot;)+
-    scale_color_colorblind()+
-    labs(x = &quot;Time&quot;,
-         y = &quot;Disease intensity&quot;, color = &quot;AIR&quot;)+
-    theme(text = element_text(size = 16),legend.position = &quot;none&quot;, axis.title.x = element_text(color =&quot;white&quot;))+
-    scale_y_continuous(breaks = seq(0,1, 0.25)),
+<div id="rmd-source-code">JSBBbmFseXNpcwoKIyMgUGFja2FnZXMgYW5kIHNldHRpbmdzCgpPdXIgYW5hbHlzZXMgaW4gUiBkZXBlbmQgb24gYSBmZXcgZnVuY3Rpb25zIGF2YWlsYWJsZSBpbiBmaXZlIFIgcGFja2FnZXMgYW5kIGFyZSBiYXNlZCBvbiB0aGUgdGlkeXZlcnNlIHRvb2xzIGFuZCBwcm9ncmFtbWluZyBzdHlsZS4gCgpgYGB7ciBtZXNzYWdlPUZBTFNFLCB3YXJuaW5nPUZBTFNFfQpsaWJyYXJ5KHRpZHl2ZXJzZSkKbGlicmFyeShkZVNvbHZlKQpsaWJyYXJ5KGdndGhlbWVzKQpsaWJyYXJ5KGNvd3Bsb3QpCmxpYnJhcnkodmlyaWRpcykKdGhlbWVfc2V0KHRoZW1lX2xpZ2h0KCkpICMgc2V0cyB0aGVtZV9saWdodCgpIGFzIGdsb2JhbApgYGAKCgojIyBFcGlkZW1pYyBzaW11bGF0aW9ucwoKQSBmdW5jdGlvbiB3YXMgY3JlYXRlZCB0byBmYWNpbGl0YXRlIHRoZSBwcm9kdWN0aW9uIG9mIHN5bnRoZXRpYyBlcGlkZW1pYyBkYXRhIGJhc2VkIG9uIGEgZmV3IGFyZ3VtZW50cyB0aGF0IHNob3VsZCBiZSBwcm92aWRlZCBieSB0aGUgdXNlciBzdWNoIGFzIGVwaWRlbWljIGR1cmF0aW9uLCB0aW1lIGludGVydmFsLCBhcHBhcmVudCBpbmZlY3Rpb24gcmF0ZSwgaW5pdGlhbCBpbm9jdWx1bSBhbmQgdW5jZXJ0YWludHkgaW4gdGhlIG1lYXN1cmVzIChzdGFuZGFyZCBkZXZpYXRpb24pLgoKYGBge3J9CmxvZ2lfZnVuIDwtIGZ1bmN0aW9uKHQsIHksIHBhcikgewogIAogIHkgPC0geVsxXQogIHIgPC0gcGFyJHIKICBkeSA9IHkqciooMS15KQogIHJldHVybihsaXN0KGMoZHkpKSkKfQoKbG9naXN0aWMgPSBmdW5jdGlvbihOPTEwLCBkdD0xLCB5MD0wLjAxLCByLCBzZD0xLCBpbmYgPSAxKXsKICAKICB0aW1lIDwtIHNlcSgwLE4sIGJ5PWR0KQogIHcgPSBudW1lcmljKGxlbmd0aCh0aW1lKSkKICB5IDwtIG51bWVyaWMobGVuZ3RoKHRpbWUpKQogIHlbMV0gPSB5MAogIGFhIDwtIC0xCiAgYmIgPC0gMQogIGZvciAoayBpbiAxOihsZW5ndGgodGltZSkgLSAxKSkgewogICAgIyBDb25zdGFudAogICAgaWYoaW5mID09IDEpe3JbaysxXSA9IHJba119CiAgICAKICAgICMgSW5jcmVhc2luZwogICAgaWYoaW5mID09IDIpe3JbaysxXSA9IHJba10rMC4wMDM1fQogICAgCiAgICAjIERlY3JlYXNpbmcKICAgIGlmKGluZiA9PSAzKXtyW2srMV0gPSByW2tdLTAuMDAzNX0KICAgIAogICAgIyBTaW51c29pZGFsCiAgICBpZihpbmYgPT0gNCl7cltrKzFdID0gcltrXSsgKChwaSAqIGNvcygocGkgKiAoayAtIDEpKSAvIDMwKSkgLyAzNjApfQogICAgCiAgICAjIFJhbmRvbQogICAgcnIgPC0gYWEgKyAoYmIgLSBhYSkgKiBydW5pZigxKQogICAgaWYoaW5mID09IDUpe3JbaysxXSA9IHJba10gKyAwLjA1ICogcnJ9CiAgICAKICAgIEluaXRDb25kIDwtIGMoeVtrXSkKICAgIHN0ZXBzID0gc2VxKHRpbWVba10sdGltZVtrKzFdLCBieT1kdCkKICAgIHBhcm1zIDwtIGxpc3Qocj1yW2tdKQogICAgb2RlX2xvZ2kgPC0gb2RlKEluaXRDb25kLCBzdGVwcywgbG9naV9mdW4sIHBhcm1zKSAgCiAgICB5W2sgKyAxXSA9IGxhc3Qob2RlX2xvZ2lbLDJdKQogICMgIHlbayArIDFdIDwtIGR0ICogKHJba10gKiB5W2tdICogKDEgLSB5W2tdKSkgKyB5W2tdCiAgfQogIAogIAogIGZvcihpIGluIDE6bGVuZ3RoKHRpbWUpKXsKICAgIAogICAgd1tpXSA9IHJub3JtKDEseVtpXSxzZCA9IHNkKnlbaV0qKDEteVtpXSkpCiAgICAKICAgIGlmKHdbaV0gPiAxKXsKICAgICAgd1tpXT0xCiAgICB9CiAgICBpZih3IFtpXSA8IDApewogICAgICB3W2ldPTAKICAgIH0KICB9CiAgcmV0dXJuKGRhdGEuZnJhbWUodGltZSwgSW50ZW5zaXR5ID0geSwgUmFuZG9uX2ludGVuc2l0eSA9IHcsIGluZl9yYXRlID0gcikpCn0KYGBgCgojIyBQRi1kZXJpdmVkIHJhdGUgCgpBIGZ1bmN0aW9uIHdhcyBwcmVwYXJlZCB0byBydW4gdGhlIFBhcnRpY2xlIEZpbHRlciBmb3IgZXN0aW1hdGluZyB0aGUgX3JfPHN1Yj55PC9zdWI+IHBhcmFtZXRlci4KCgpgYGB7cn0KClNJUl9maWx0ZXIgPSBmdW5jdGlvbihtb2RlbCwgTnBhcnRpLCBtZWFzdXJlcywgdGltZSwgIGd1ZXNzX3IsIHNkX21lYXMsIHNkX3Bhciwgc2RfbW9kZWwsIGR0PSAwLjUpewogIHJlYWxTbWVhcyA8LSBtZWFzdXJlcwoKIyBJbml0aWFsIGd1ZXNzIGZvciB0aGUgZXN0aW1hdGlvbi4gSGVyZSB3ZSBzZXQgYXMgdGhlIGZpcnN0IHZhbHVlIG9mIHRoZSBzeW50aGV0aWMgbWVhc3VyZXMgdmVjdG9yCiAgTiA9IGxlbmd0aChyZWFsU21lYXMpCiAgeSA8LSBudW1lcmljKE4pCiAgciA8LSBudW1lcmljKE4pCiAgZHQgPSBkdAogIFhpbml0IDwtIHJlYWxTbWVhc1sxXQogIFMgPC0gWGluaXQKICByWzFdID0gZ3Vlc3NfcgogIHRpbWUgPSB0aW1lCiAgIyBwYXJ0aWNsZSBudW1iZXIKICAKICBOcGFydGkgPC0gTnBhcnRpCiAgTnBhcnRpMSA8LSAoMSAvIE5wYXJ0aSkKICAKICAjIFZhcmlhYmxlcycgYW5kIG1vZGVsJ3MgZXJyb3IKICAKICAKICBTbWVhcyA8LSBtZWFuKHJlYWxTbWVhcykKICBzdGRtZWFzIDwtIDAuMjUgKiBTbWVhcyooMS1TbWVhcykKICAjIFN5bnRoZXRpYyBkYXRhIGVycm9yCiAgc3RkbW9kZWwgPC0gMC4wMDUgKiBTCiAgIyBNb2RlbCBlcnJvcgogIHN0ZG1vZGVsZGlmIDwtIHNkX3BhciAKICAjICJwYXJhbWV0ZXIiIiBlcnJvcgogIAogIAogICMgQ3JlYXRpbmcgdGhlIHdlaWdodHMnIHZlY3RvcgogIAogIHdwYXJ0aSA8LSBudW1lcmljKE5wYXJ0aSkKICAKICAKICAjIENyZWF0aW5nIHRoZSBvdGhlcnMgdmVjdG9ycyBmb3IgdGhlIFNJUi1QRiBhbGdvcml0aG0KICAKICBzaW50aSA8LSBudW1lcmljKE4pCiAgc2ludGlbMV0gPC0gclsxXSAKICBTbmV3IDwtIG51bWVyaWMoTikKICBTbmV3WzFdIDwtIFMKICB4ZXN0c2lyIDwtIG51bWVyaWMoTikKICB4ZXN0c2lyWzFdIDwtIFMKICBsb29wMSA8LSBjKDE6KGxlbmd0aCh0aW1lKSAtIDEpKQogIGxvb3AyIDwtIGMoMTpOcGFydGkpCiAgCiAgeHBhcnRpcmVzIDwtIG51bWVyaWMoTnBhcnRpKQogIHNpbnRpcmVzIDwtIG51bWVyaWMoTnBhcnRpKQogIHdwYXJ0aXJlcyA8LSBudW1lcmljKE5wYXJ0aSkKICB4cGFydGluZXcgPC0gbnVtZXJpYyhOcGFydGkpCiAgc2ludGluZXcgPC0gbnVtZXJpYyhOcGFydGkpCiAgc3Rkc2ludCA8LSBudW1lcmljKE4pCiAgc3Rkc2lyIDwtIG51bWVyaWMoTikKICAKICBhYSA8LSAtMQogIGJiIDwtIDEKICBmb3IgKGsgaW4gbG9vcDEpIHsgIyBsb29wIHRvIGV2ZXJ5IHRpbWUgcG9pbnQKICAgIAogICAgZm9yIChsIGluIGxvb3AyKSB7ICMgbG9vcCB0byBjcmVhdGUgdGhlIHBhcnRpY2xlcwogICAgICAKICAgICAgIyBSb25kb21pYyBwYXJ0aWNsZSBmb3IgImludGVuc2l0eSIgOgogICAgICAKICAgICAgU29sZCA8LSBTbmV3W2tdICsgcm5vcm0oMSkqc3RkbW9kZWwKICAgICAgCiAgICAgICMgUm9uZG9taWMgcGFydGljbGUgZm9yICJwYXJhbWV0ZXIiOgogICAgICAKICAgICAgcnIgPC0gYWEgKyAoYmIgLSBhYSkgKiBydW5pZigxKQogICAgICBzaW50b2xkIDwtIHNpbnRpW2tdICsgcnIgKiBzdGRtb2RlbGRpZiAKICAgICAgCiAgICAgICMgU29sdmluZyB0aGUgZGlyZWN0IHByb2JsZW0gZm9yIGV2ZXJ5IHBhcnRpY2xlCiAgICAgIEluaXRDb25kIDwtIGMoU29sZCkKICAgICAgc3RlcHMgPC0gc2VxKHRpbWVba10sIHRpbWVbayArIDFdLCBieSA9IGR0KQogICAgICBwYXJtcyA8LSBsaXN0KHIgPSBzaW50b2xkKQogICAgICAgIAogICAgICAKICAgICAgICAgIyBMb2dpc3RpYwogICAgICAgICBpZihtb2RlbCA9PSAxKXsKICAgICAgICAgICBvZGVfbG9naSA8LSBvZGUoSW5pdENvbmQsIHN0ZXBzLCBsb2dpX2Z1biwgcGFybXMpICAKICAgICAgICAgICB5W2sgKyAxXSA9IGxhc3Qob2RlX2xvZ2lbLDJdKQogICAgICAgICAgIH0gICAgIAogICAgICAgICAjIGdvbXBlcnR6CiAgICAgICAgIGlmKG1vZGVsID09IDIpIHsKICAgICAgICAgICBvZGVfZ29tcGkgPW9kZShJbml0Q29uZCwgc3RlcHMsIGdvbXBpX2Z1biwgcGFybXMpICAKICAgICAgICAgICB5W2sgKyAxXSA9IGxhc3Qob2RlX2dvbXBpWywyXSkgCiAgICAgICAgIH0KICAgICAgIAogICAgICBpZihtb2RlbCA9PSAzKSB7CiAgICAgICAgb2RlX21vbm8gPW9kZShJbml0Q29uZCwgc3RlcHMsIG1vbm9fZnVuLCBwYXJtcykgIAogICAgICAgIHlbayArIDFdID0gbGFzdChvZGVfbW9ub1ssMl0pIAogICAgICB9CiAgICAgIAoKICAgICAgIHhwYXJ0aW5ld1tsXSA8LSB5W2sgKyAxXQogICAgICAKICAgICAgIHNpbnRpbmV3W2xdIDwtIHNpbnRvbGQKICAgICAgCiAgICAgICMgQ2FsY3VsYXRpbmcgdGhlIHdlaWd0aHMKICAgICAgCiAgICAgIHdwYXJ0aVtsXSA8LSBleHAoLSgoeHBhcnRpbmV3W2xdIC0gcmVhbFNtZWFzW2srMV0pIC8gc3RkbWVhcyleMikKICAgIH0KICAgIAogICAgIyBTZXR0aW5nIHRoZSB3ZWlndGhzIGJldHdlZW4gMCBhbmQgMQogICAgCiAgICB3dG90YWwgPC0gc3VtKHdwYXJ0aSkKICAgIAogICAgd3BhcnRpbiA8LSBudW1lcmljKE5wYXJ0aSkKICAgIHdwYXJ0aW4gPC0gd3BhcnRpIC8gd3RvdGFsCiAgICAKICAgIAogICAgIyBSZXNhbXBsaW5nCiAgICAKICAgIGNyZXNhIDwtIG51bWVyaWMoTnBhcnRpKQogICAgdXJlc2EgPC0gbnVtZXJpYyhOcGFydGkpCiAgICBjcmVzYVsxXSA8LSB3cGFydGluWzFdCiAgICAKICAgIGZvciAoaSBpbiAyOk5wYXJ0aSkgewogICAgICBjcmVzYVtpXSA8LSBjcmVzYVtpIC0gMV0gKyB3cGFydGluW2ldCiAgICB9CiAgICBpcmVzYSA8LSAxCiAgICB1cmVzYVsxXSA8LSBydW5pZigxKSAqIE5wYXJ0aTEKICAgIAogICAgZm9yIChqIGluIDE6TnBhcnRpKSB7CiAgICAgIHVyZXNhW2pdIDwtIHVyZXNhWzFdICsgTnBhcnRpMSAqIChqIC0gMSkKICAgICAgCiAgICAgIHdoaWxlICh1cmVzYVtqXSA+IGNyZXNhW2lyZXNhXSkgewogICAgICAgIGlyZXNhIDwtIGlyZXNhICsgMQogICAgICB9CiAgICAgIAogICAgICB4cGFydGlyZXNbal0gPC0geHBhcnRpbmV3W2lyZXNhXQogICAgICBzaW50aXJlc1tqXSA8LSBzaW50aW5ld1tpcmVzYV0KICAgICAgd3BhcnRpcmVzW2pdIDwtIE5wYXJ0aTEKICAgIH0KICAgIAogICAgU25ld1trICsgMV0gPC0gbWVhbih4cGFydGlyZXMpCiAgICBzaW50aVtrICsgMV0gPC0gbWVhbihzaW50aXJlcykKICAgIAogICAgc3Rkc2ludFtrICsgMV0gPC0gc2Qoc2ludGlyZXMpCiAgICB4ZXN0c2lyW2sgKyAxXSA8LSBtZWFuKHhwYXJ0aXJlcykKICAgIAogICAgc3Rkc2lyW2sgKyAxXSA8LSBzZCh4cGFydGlyZXMpCiAgICB4cGFydGlvbGQgPC0geHBhcnRpcmVzCiAgICAKICAgICMgRXJyb3IgYXR1YWxpemF0aW9uCiAgICAKICAgIHN0ZG1vZGVsZGlmIDwtIHNkX3BhciAKICAgIHN0ZG1vZGVsIDwtIHNkX21vZGVsICogU25ld1trICsgMV0KICAgIHN0ZG1lYXMgPC0gc2RfbWVhcyAqIHJlYWxTbWVhc1trICsgMV0qKDEtcmVhbFNtZWFzW2sgKyAxXSkKICB9CiAgCiAgbGJkc2lybyA8LSBzaW50aSAtIDIuNTc2ICogIHN0ZHNpbnQKICB1YmRzaXJvIDwtIHNpbnRpICsgMi41NzYgKiBzdGRzaW50CiAgbGJkc2lyIDwtIHhlc3RzaXIgLSAyLjU3NiAqIHN0ZHNpcgogIHViZHNpciA8LSB4ZXN0c2lyICsgMi41NzYgKiBzdGRzaXIKICAKICBmaW5hbCA8LSBkYXRhLmZyYW1lKHRpbWUsIHJlYWxTbWVhcywgeGVzdHNpciwgbGJkc2lyLCB1YmRzaXIsIHNpbnRpLCBsYmRzaXJvLCB1YmRzaXJvKQogIAogIHJldHVybihmaW5hbCkKICB9CgpgYGAKCiMjIFNpbXVsYXRpb24gb2YgdGltZS12YXJ5aW5nIHIgCgpXZSBuZWVkIHRvIHNldCB0aGUgaW5pdGlhbCB2YWx1ZXMgZm9yIHNpbXVsYXRpbmcgX3JfPHN1Yj55PC9zdWI+IG9mIHZhcmlvdXMgdGVtcG9yYWwgcGF0dGVybnMuCgpgYGB7cn0KbG9naV9zZXR1cCA8LSBtYXRyaXgoYygKICAiQ29uc3RhbnQiLCAwLjIsCiAgIkluY3JlYXNpbmciLCAwLjA1LAogICJEZWNyZWFzaW5nIiwgMC4zLAogICJTaW51c29pZGFsIiwgMC4yLAogICJSYW5kb20iLCAwLjIKKSwKbnJvdyA9IDUsCm5jb2wgPSAsCmJ5cm93ID0gVFJVRQopCmBgYAoKV2Ugd2lsbCBub3cgcnVuIHRoZSBQYXJ0aWNsZSBGaWx0ZXIgdG8gb2J0YWluIHRoZSBlc3RpbWF0ZXMgb2YgYm90aCB0aGUgbWVhc3VyZXMgYW5kIHRoZSBwYXJhbWV0ZXJzIGZvciBlYWNoIHR5cGUgb2YgaW5mZWN0aW9uIHJhdGUsIHRpbWUgaW50ZXJ2YWwgYW5kIG5vaXNlLiBGb3Igc3VjaCwgd2Ugd2lsbCB1c2UgYSBmb3ItbG9vcCBhcHByb2FjaCB0byBnZW5lcmF0ZSBhIGRhdGFmcmFtZS4gTm9pc2UgaXMgcmVwcmVzZW50ZWQgYnkgaiwgdGltZSBpbnRlcnZhbCBieSBrIGFuZCBfcl88c3ViPnk8L3N1Yj4gcGF0dGVybiBieSBpLiAKCmBgYHtyIHdhcm5pbmc9RkFMU0V9Cm5vaXNlIDwtIGMoMC4xLCAwLjI1KQoKbG9naXN0aWNfYWxsMyA8LSBkYXRhLmZyYW1lKCkKZm9yIChqIGluIDE6MikgewogIGxvZ2lzdGljX2FsbDIgPC0gZGF0YS5mcmFtZSgpCiAgZm9yIChrIGluIHNlcSgxLCAxMCwgYnkgPSAyKSkgewogICAgbG9naXN0aWNfYWxsIDwtIGRhdGEuZnJhbWUoKQogICAgZm9yIChpIGluIDE6NSkgewogICAgICBzZXQuc2VlZCg1KQogICAgICBkYXRhIDwtIGxvZ2lzdGljKE4gPSA2MCwgZHQgPSAwLjUsIHkwID0gMC4wMDEsIHIgPSBhcy5udW1lcmljKGxvZ2lfc2V0dXBbaSwgMl0pLCBzZCA9IG5vaXNlW2pdLCBpbmYgPSBpKQogICAgICBkYXRhIDwtIGRhdGEgJT4lCiAgICAgICAgZmlsdGVyKHRpbWUgJWluJSBjKHNlcSgwLCA2MCwgYnkgPSBrKSkpCiAgICAgIGRhdGFfbG9naSA8LSBkYXRhLmZyYW1lKAogICAgICAgIGluZmVjdGlvbl90eXBlID0gYXMuZmFjdG9yKGxvZ2lfc2V0dXBbaSwgMV0pLAogICAgICAgIFNJUl9maWx0ZXIoCiAgICAgICAgICBtb2RlbCA9IDEsCiAgICAgICAgICBndWVzc19yID0gYXMubnVtZXJpYyhsb2dpX3NldHVwW2ksIDJdKSwKICAgICAgICAgIE5wYXJ0aSA9IDEwMDAsCiAgICAgICAgICBtZWFzdXJlcyA9IGRhdGEkUmFuZG9uX2ludGVuc2l0eSwKICAgICAgICAgIHRpbWUgPSBkYXRhJHRpbWUsCiAgICAgICAgICBzZF9tZWFzID0gMC4yNSwKICAgICAgICAgIHNkX3BhciA9IDAuMTUsCiAgICAgICAgICBzZF9tb2RlbCA9IDAuMDA1CiAgICAgICAgKSwKICAgICAgICB5ID0gZGF0YSRJbnRlbnNpdHksCiAgICAgICAgaW5mX3JhdGUgPSBkYXRhJGluZl9yYXRlCiAgICAgICkKCiAgICAgIGxvZ2lzdGljX2FsbCA8LSBsb2dpc3RpY19hbGwgJT4lCiAgICAgICAgYmluZF9yb3dzKGRhdGFfbG9naSkKICAgIH0KCiAgICBsb2dpc3RpY19hbGwgPC0gbG9naXN0aWNfYWxsICU+JQogICAgICBtdXRhdGUodGltZV9pbnRlcnZhbCA9IGspCgogICAgbG9naXN0aWNfYWxsMiA8LSBsb2dpc3RpY19hbGwyICU+JQogICAgICBiaW5kX3Jvd3MobG9naXN0aWNfYWxsKQogIH0KICBsb2dpc3RpY19hbGwyIDwtIGxvZ2lzdGljX2FsbDIgJT4lCiAgICBtdXRhdGUobm9pc2UgPSBub2lzZVtqXSkKCiAgbG9naXN0aWNfYWxsMyA8LSBsb2dpc3RpY19hbGwzICU+JQogICAgYmluZF9yb3dzKGxvZ2lzdGljX2FsbDIpCn0KYGBgCgoKIyMgVmlzdWFsaXppbmcgdGhlIERQQ3MKCk5vdyB0aGF0IHdlIHByb2R1Y2VkIHRoZSBEUEMgZGF0YSB3ZSBjYW4gdmlzdWFsaXplIGVhY2ggY3VydmUgZm9yIHRoZSBjb21iaW5hdGlvbiBfcl88c3ViPnk8L3N1Yj4gcGF0dGVybiwgbm9pc2UgaW4gdGhlIG1lYXN1cmUgYW5kIHRpbWUgaW50ZXJ2YWwuIEJ1dCBmaXJzdCB3ZSBuZWVkIHRvIGNvcnJlY3QgbmFtZXMgb2YgbGV2ZWxzIG9mIGZhY3RvcnMgd2hpY2ggbmVlZCBzcGVjaWFsIGNoYXJhY3RlcnMgbGlrZSBhbHBoYSBhbmQgZGVsdGEuCgpgYGB7cn0KbG9naXN0aWNfYWxsMyA8LSBsb2dpc3RpY19hbGwzICU+JQogIG11dGF0ZShub2lzZTIgPSBub2lzZSkgJT4lCiAgbXV0YXRlKG5vaXNlID0gY2FzZV93aGVuKAogICAgbm9pc2UgPT0gMC4xMCB+ICJcdTAzYjEgPSAgMC4xMCIsCiAgICBub2lzZSA9PSAwLjI1IH4gIlx1MDNiMSA9ICAwLjI1IgogICkpICU+JQogIG11dGF0ZSh0aW1lX2ludGVydmFsMiA9IHRpbWVfaW50ZXJ2YWwpICU+JQogIG11dGF0ZSh0aW1lX2ludGVydmFsID0gY2FzZV93aGVuKAogICAgdGltZV9pbnRlcnZhbCA9PSAxIH4gIlx1MDM5NHQgPSAgMSIsCiAgICB0aW1lX2ludGVydmFsID09IDMgfiAiXHUwMzk0dCA9ICAzIiwKICAgIHRpbWVfaW50ZXJ2YWwgPT0gNSB+ICJcdTAzOTR0ID0gIDUiLAogICAgdGltZV9pbnRlcnZhbCA9PSA3IH4gIlx1MDM5NHQgPSAgNyIsCiAgICB0aW1lX2ludGVydmFsID09IDkgfiAiXHUwMzk0dCA9ICA5IgogICkpCgpoZWFkKGxvZ2lzdGljX2FsbDMpCmBgYAoKCldlIGNhbiB0aGVuIHByb2NlZWQgdG8gcHJvZHVjZSBhIHBhbmVsIG9mIHBsb3RzIGZvciBlYWNoIG9mIHRoZSA1MCBEUENzLiAKCmBgYHtyIGZpZy5oZWlnaHQ9MTAsIGZpZy53aWR0aD0xMH0KbG9naXN0aWNfYWxsMyAlPiUKICBnZ3Bsb3QoKSArCiAgZ2VvbV9saW5lKGFlcyh0aW1lLCByZWFsU21lYXMsIGNvbG9yID0gaW5mZWN0aW9uX3R5cGUpLAogICAgc2l6ZSA9IDEuMgogICkgKwoKICBmYWNldF9ncmlkKHRpbWVfaW50ZXJ2YWwgKyBub2lzZSB+IGluZmVjdGlvbl90eXBlKSArCiAgc2NhbGVfZmlsbF9tYW51YWwodmFsdWVzID0gImdyYXkiKSArCiAgc2NhbGVfY29sb3JfY29sb3JibGluZCgpICsKICBsYWJzKAogICAgeCA9ICJUaW1lIiwKICAgIHkgPSAiRGlzZWFzZSBpbnRlbnNpdHkiCiAgKSArCiAgdGhlbWUoCiAgICBsZWdlbmQucG9zaXRpb24gPSAibm9uZSIsIHRleHQgPSBlbGVtZW50X3RleHQoc2l6ZSA9IDE2KSwKICAgIHN0cmlwLnRleHQgPSBlbGVtZW50X3RleHQoY29sb3IgPSAiYmxhY2siKSwKICAgIHN0cmlwLmJhY2tncm91bmQgPSBlbGVtZW50X3JlY3QoZmlsbCA9ICJ3aGl0ZSIpCiAgKSArCiAgc2NhbGVfeV9jb250aW51b3VzKGJyZWFrcyA9IHNlcSgwLCAxLCAwLjI1KSkKZ2dzYXZlKCJmaWdzL2xvZ2lzdGljX25vaXNlZC5wbmciLCBkcGkgPSAzMDAsIGhlaWdodCA9IDEyLCB3aWR0aCA9IDgpCmBgYAoKCk5vdyBhIHNpbWlsYXIgcGFuZWwgZGVwaWN0aW5nIHRoZSBzaW11bGF0ZWQgX3JfPHN1Yj55PC9zdWI+IHZhbHVlcyAoc29saWQgY29sb3JlZCBsaW5lKSBhbmQgdGhlIHJlc3BlY3RpdmUgcG9pbnQtZXN0aW1hdGUgKGFuZCByZXNwZWN0aXZlIDk1JSBDSSl1c2luZyB0aGUgcGFydGljbGUgZmlsdGVyIG1ldGhvZC4KCgpgYGB7ciBmaWcuaGVpZ2h0PTEwLCBmaWcud2lkdGg9MTB9Cgpsb2dpc3RpY19hbGwzICU+JQogIGdncGxvdCgpICsKICBnZW9tX3JpYmJvbihhZXModGltZSwgeW1pbiA9ICh1YmRzaXJvKSwgeW1heCA9IChsYmRzaXJvKSwgZmlsbCA9ICJJYyA5OSUiKSwgYWxwaGEgPSAwLjUsIHN0YXQgPSAiaWRlbnRpdHkiKSArCiAgZ2VvbV9saW5lKGFlcyh0aW1lLCBpbmZfcmF0ZSwgY29sb3IgPSBpbmZlY3Rpb25fdHlwZSksCiAgICBzaXplID0gMS4yCiAgKSArCiAgZ2VvbV9wb2ludChhZXModGltZSwgc2ludGkpLAogICAgc2l6ZSA9IDIsIGFscGhhID0gMQogICkgKwogIGZhY2V0X2dyaWQodGltZV9pbnRlcnZhbCArIG5vaXNlIH4gaW5mZWN0aW9uX3R5cGUsIHNjYWxlcyA9ICJmcmVlX3kiKSArCiAgc2NhbGVfZmlsbF9tYW51YWwodmFsdWVzID0gImdyYXkiKSArCiAgc2NhbGVfY29sb3JfY29sb3JibGluZCgpICsKICBsYWJzKAogICAgeCA9ICJUaW1lIiwKICAgIHkgPSAiQXBwYXJlbnQgaW5mZWN0aW9uIHJhdGUiCiAgKSArCiAgdGhlbWUoCiAgICBsZWdlbmQucG9zaXRpb24gPSAibm9uZSIsIHRleHQgPSBlbGVtZW50X3RleHQoc2l6ZSA9IDE0KSwKICAgIHN0cmlwLnRleHQgPSBlbGVtZW50X3RleHQoY29sb3IgPSAiYmxhY2siKSwKICAgIHN0cmlwLmJhY2tncm91bmQgPSBlbGVtZW50X3JlY3QoZmlsbCA9ICJ3aGl0ZSIpCiAgKSArCiAgc2NhbGVfeV9jb250aW51b3VzKGJyZWFrcyA9IHNlcSgtMiwgMiwgMC4yKSkKCmdnc2F2ZSgiZmlncy9sb2dpc3RpY19haXIucG5nIiwgZHBpID0gMzAwLCBoZWlnaHQgPSAxMiwgd2lkdGggPSA4KQpgYGAKCkJlc2lkZXMgdGhlIF9yXzxzdWI+eTwvc3ViPiBwYXJhbWV0ZXIgZXN0aW1hdGlvbiwgdGhlIHBhcnRpY2xlIGZpbHRlciBhbHNvIGVzdGltYXRlcyB0aGUgbWVhc3VyZXMgX3lfIGF0IGVhY2ggdGltZSBwb2ludC4gTGV0J3MgaGF2ZSBhIGxvb2sgYXQgdGhlc2UgZXN0aW1hdGVzIChhbmQgcmVzcGVjdGl2ZSA5NSVDSSkgdG9nZXRoZXIgd2l0aCB0aGUgc3ludGhldGljIG1lYXN1cmVzICh0aGUgc29saWQgbGluZXMpLiAKCgpgYGB7ciBmaWcuaGVpZ2h0PTEwLCBmaWcud2lkdGg9MTB9CmxvZ2lzdGljX2FsbDMgJT4lCiAgZ2dwbG90KCkgKwogIGdlb21fcmliYm9uKGFlcyh0aW1lLCB5bWluID0gKHViZHNpciksIHltYXggPSAobGJkc2lyKSwgZmlsbCA9ICJJYyA5OSUiKSwgYWxwaGEgPSAwLjUsIHN0YXQgPSAiaWRlbnRpdHkiKSArCiAgZ2VvbV9saW5lKGFlcyh0aW1lLCB5LCBjb2xvciA9IGluZmVjdGlvbl90eXBlKSwKICAgIHNpemUgPSAxLjIKICApICsKICBnZW9tX3BvaW50KGFlcyh0aW1lLCB4ZXN0c2lyKSwKICAgIHNpemUgPSAxLjUsIGFscGhhID0gMC43CiAgKSArCiAgZmFjZXRfZ3JpZCh0aW1lX2ludGVydmFsICsgbm9pc2UgfiBpbmZlY3Rpb25fdHlwZSkgKwogIHNjYWxlX2ZpbGxfbWFudWFsKHZhbHVlcyA9ICJncmF5IikgKwogIHNjYWxlX2NvbG9yX2NvbG9yYmxpbmQoKSArCiAgbGFicygKICAgIHggPSAiVGltZSIsCiAgICB5ID0gIkRpc2Vhc2UgaW50ZW5zaXR5IgogICkgKwogIHRoZW1lKAogICAgbGVnZW5kLnBvc2l0aW9uID0gIm5vbmUiLCB0ZXh0ID0gZWxlbWVudF90ZXh0KHNpemUgPSAxNiksCiAgICBzdHJpcC50ZXh0ID0gZWxlbWVudF90ZXh0KGNvbG9yID0gImJsYWNrIiksCiAgICBzdHJpcC5iYWNrZ3JvdW5kID0gZWxlbWVudF9yZWN0KGZpbGwgPSAid2hpdGUiKQogICkgKwogIHNjYWxlX3lfY29udGludW91cyhicmVha3MgPSBzZXEoMCwgMSwgMC4yNSkpCmdnc2F2ZSgiZmlncy9sb2dpc3RpY19jdXJ2ZS5wbmciLCBkcGkgPSAzMDAsIGhlaWdodCA9IDEyLCB3aWR0aCA9IDgpCmBgYAoKCiMjIyBFc3RpbWF0aW9uIGVycm9yCgpUaGUgYWNjdXJhY3kgb2YgdGhlIGVzdGltYXRlcyBvZiBfcl88c3ViPnk8L3N1Yj4sIG9yIGhvdyBjbG9zZSB0aGV5IHdlcmUgdG8gdGhlIHNpbXVsYXRlZCBfcl88c3ViPnk8L3N1Yj4gd2FzIGV2YWx1YXRlZCBiYXNlZCBvbiB0aGUgbWVhbiBzcXVhcmVkIGVycm9yIHN0YXRpc3RpYy4gVGhlIGNvZGUgYmVsb3cgd2lsbCBwcm9kdWNlIGEgZGF0YWZyYW1lIHdpdGggdGhlIHJlc3BlY3RpdmUgUk1TRSBmb3IgZWFjaCBlcGlkZW1pY3MuCgpgYGB7ciB3YXJuaW5nPUZBTFNFfQpSTVNFX2RhdGEgPC0gbG9naXN0aWNfYWxsMyAlPiUKICBncm91cF9ieShpbmZlY3Rpb25fdHlwZSwgdGltZV9pbnRlcnZhbDIsIG5vaXNlKSAlPiUKICBtdXRhdGUoCiAgICBybXNpID0gKGluZl9yYXRlIC0gc2ludGkpXjIsCiAgICBtYWVpID0gYWJzKGluZl9yYXRlIC0gc2ludGkpCiAgKSAlPiUKICBzdW1tYXJpc2UoUk1TID0gc3FydCgoMSAvIChsZW5ndGgoaW5mX3JhdGUpKSkgKiBzdW0ocm1zaSwgbmEucm0gPSBUKSkpICU+JQogIG11dGF0ZShtb2RlbCA9ICJMb2dpc3RpYyIpCgphY3VyYWN5X2xvZ2kgPC0gUk1TRV9kYXRhCgpoZWFkKGFjdXJhY3lfbG9naSkKYGBgCgojIyBMb2dpdC1kZXJpdmVkIHJhdGUKClRoZSBmb2xsb3dpbmcgZXF1YXRpb24gaXMgY29tbW9ubHkgdXNlZCB0byBvYnRhaW4gX3JfPHN1Yj55PC9zdWI+IGJldHdlZW4gdHdvIHRpbWVzLCBnaXZlbiB0aGUgdHdvIG1lYXN1cmVzIGFyZSBrbm93bi4gCgokJCByX3tpKzF9ID0gXGZyYWMge1tsbihcZnJhYyB7eV97aSsxfX17MS15X3tpKzF9fSkgLWxuKFxmcmFjIHt5X3tpfX17MS15X3tpfX0pIF19e3Rfe2krMX0gLSB0X3tpfX0gJCQKCldlIHdpbGwgY2FsY3VsYXRlIHRoZW0gYWxsIGZvciBlYWNoIGN1cnZlIHRoZSBzYW1lIHdheSB3ZSBkaWQgZm9yIHRoZSBQRi1lc3RpbWF0ZWQgcGFyYW1ldGVycyBhbmQgdGhlbiB2aXN1YWxpemUuCgpgYGB7cn0KY2FsY19yX2xvZyA8LSBsb2dpc3RpY19hbGwzICU+JQogIGdyb3VwX2J5KGluZmVjdGlvbl90eXBlLCB0aW1lX2ludGVydmFsLCBub2lzZSkgJT4lCiAgbXV0YXRlKHJfY2FsYyA9IChsb2cocmVhbFNtZWFzIC8gKDEgLSByZWFsU21lYXMpKSAtIGxvZygobGFnKHJlYWxTbWVhcywgMSkgLyAoMSAtIChsYWcocmVhbFNtZWFzLCAxKSkpKSkpIC8gKHRpbWUgLSBsYWcodGltZSwgMSkpKSAlPiUKICBtdXRhdGUobW9kZWwgPSAiTG9naXN0aWMiKQoKIApjYWxjdWxhdGVkX3IgPC0gY2FsY19yX2xvZwpoZWFkKGNhbGN1bGF0ZWRfciAlPiUKICB1bmdyb3VwKCkgJT4lCiAgc2VsZWN0KGluZmVjdGlvbl90eXBlLCB0aW1lLCBub2lzZSwgdGltZV9pbnRlcnZhbDIsIHJfY2FsYykpCmBgYAoKCmBgYHtyIGZpZy5oZWlnaHQ9MTAsIGZpZy53aWR0aD0xMH0KCmNhbGN1bGF0ZWRfciAlPiUKICBnZ3Bsb3QoKSArCiAgZ2VvbV9saW5lKGFlcyh0aW1lLCBpbmZfcmF0ZSwgY29sb3IgPSBpbmZlY3Rpb25fdHlwZSksCiAgICBzaXplID0gMS4yCiAgKSArCiAgZ2VvbV9wb2ludChhZXModGltZSwgcl9jYWxjKSwKICAgIHNpemUgPSAyLAogICAgYWxwaGEgPSAxCiAgKSArCiAgZmFjZXRfZ3JpZCh0aW1lX2ludGVydmFsICsgbm9pc2UgfiBpbmZlY3Rpb25fdHlwZSwgc2NhbGVzID0gImZyZWVfeSIpICsKICBzY2FsZV9maWxsX3ZpcmlkaXMoKSArCiAgc2NhbGVfY29sb3JfY29sb3JibGluZCgpICsKICBsYWJzKAogICAgeCA9ICJUaW1lIiwKICAgIHkgPSAiQXBwYXJlbnQgaW5mZWN0aW9uIHJhdGUiCiAgKSArCiAgZ3VpZGVzKGNvbG9yID0gZ3VpZGVfbGVnZW5kKCJub25lIikpICsKICB0aGVtZSgKICAgIHRleHQgPSBlbGVtZW50X3RleHQoc2l6ZSA9IDE0KSwgbGVnZW5kLnBvc2l0aW9uID0gIm5vbmUiLAogICAgc3RyaXAudGV4dCA9IGVsZW1lbnRfdGV4dChjb2xvciA9ICJibGFjayIpLAogICAgc3RyaXAuYmFja2dyb3VuZCA9IGVsZW1lbnRfcmVjdChmaWxsID0gIndoaXRlIikKICApCgpnZ3NhdmUoImZpZ3Mvcl9jYWxjX2xvZ2kucG5nIiwgZHBpID0gMzAwLCBoZWlnaHQgPSAxMiwgd2lkdGggPSA4KQpgYGAKCiMjIyBFcnJvcgoKYGBge3Igd2FybmluZz1GQUxTRX0KYWN1cmFjeV9jYWxjIDwtIGNhbGN1bGF0ZWRfciAlPiUKICBmaWx0ZXIocl9jYWxjICE9IGlzLm5hKHJfY2FsYykpICU+JQogIGdyb3VwX2J5KGluZmVjdGlvbl90eXBlLCB0aW1lX2ludGVydmFsMiwgbm9pc2UpICU+JQogIG11dGF0ZSgKICAgIHJtc2kgPSAoaW5mX3JhdGUgLSByX2NhbGMpXjIsCiAgICBtYWVpID0gYWJzKGluZl9yYXRlIC0gcl9jYWxjKQogICkgJT4lCiAgc3VtbWFyaXNlKFJNUyA9IHNxcnQoKDEgLyAobGVuZ3RoKGluZl9yYXRlKSkpICogc3VtKHJtc2ksIG5hLnJtID0gVCkpKQpoZWFkKGFjdXJhY3lfY2FsYykKYGBgCgo=</div>
 
-logistic_all3 %&gt;%
-  filter(time_interval2==3 &amp; noise2 == 0.25) %&gt;% 
-  ggplot()+
-    geom_point(aes(time,realSmeas, color = infection_type),size = 2.5, alpha = 1)+
-  geom_line(aes(time,realSmeas, color = infection_type),size = 1, alpha = .6)+
-
-    scale_fill_manual(values = &quot;gray&quot;)+
-    scale_color_colorblind()+
-    labs(x = &quot;Time&quot;,
-         y = &quot;Disease intensity&quot;, color = &quot;&quot;)+
-    theme(text = element_text(size = 16),legend.position = &quot;none&quot;)+
-    scale_y_continuous(breaks = seq(0,1, 0.25)),
-nrow = 3, rel_heights =  c(0.83,0.83,1), labels = &quot;AUTO&quot;)
-
-,
-a = get_legend(logistic_all3 %&gt;%
-  filter(time_interval2==3 &amp; noise2 == 0.25) %&gt;% 
-  ggplot()+
-    geom_point(aes(time,realSmeas, color = infection_type),size = 2.5, alpha = 1)+
-  geom_line(aes(time,realSmeas, color = infection_type),size = 1, alpha = .6)+
-
-    scale_fill_manual(values = &quot;gray&quot;)+
-    scale_color_colorblind()+
-    labs(x = &quot;Time&quot;,
-         y = &quot;Disease intensity&quot;, color = &quot;&quot;)+
-    theme(text = element_text(size = 16),legend.position = &quot;right&quot;)+
-    scale_y_continuous(breaks = seq(0,1, 0.25))), rel_widths = c(1,0.4))</code></pre>
-<p><img src="main_code_files/figure-html/unnamed-chunk-16-1.png" width="576" /></p>
-<pre class="r"><code>ggsave(&quot;figs/DPCs.png&quot;, dpi=300, height = 9, width =7)</code></pre>
-</div>
-<div id="estimates-for-increasing-parameter" class="section level2">
-<h2>Estimates for increasing parameter</h2>
-<pre class="r"><code># plot_grid(
-  logistic_all3 %&gt;%
-    mutate(Approach = &quot;Estimated&quot;) %&gt;% 
-    bind_rows(calculated_r%&gt;% 
-                mutate(Approach = &quot;Calculated&quot;,sinti = r_calc)) %&gt;% 
-    filter(infection_type == &quot;Increasing&quot;) %&gt;% 
-    filter(time_interval2 %in% c(1,5)) %&gt;% 
-    ggplot()+
-    geom_ribbon(aes(time, ymin = ubdsiro, ymax = lbdsiro,alpha = Approach, fill = &quot;99% CI&quot;), stat = &quot;identity&quot;)+
-    geom_line(aes(time, inf_rate, color = time_interval),size = 1.5)+
-    guides(alpha = guide_legend(&quot;none&quot;))+
-    geom_point(aes(time, sinti))+
-  # facet_wrap(noise+time_interval~Approach)+
-    facet_grid(noise+time_interval~Approach)+
-    scale_alpha_discrete(range = c(0, 0.5))+
-    scale_color_colorblind()+
-    scale_fill_manual(values = &quot;gray&quot;)+
-  labs(x = &quot;Time&quot;, y = &quot;Apparent infection rate&quot;, fill = &quot;&quot;, color= &quot;&quot;)+
-  theme(legend.position = &quot;bottom&quot;, text = element_text(size = 16),
-        strip.text = element_text(color = &quot;black&quot;),
-        strip.background = element_rect(fill=&quot;white&quot;))</code></pre>
-<pre><code>## Warning: Using alpha for a discrete variable is not advised.</code></pre>
-<pre><code>## Warning: Removed 4 rows containing missing values (geom_point).</code></pre>
-<p><img src="main_code_files/figure-html/unnamed-chunk-17-1.png" width="672" /></p>
-<pre class="r"><code>ggsave(&quot;figs/Fig5.png&quot;, dpi=300, height = 8, width = 6)</code></pre>
-<pre><code>## Warning: Removed 4 rows containing missing values (geom_point).</code></pre>
-</div>
-</div>
-
-<div id="rmd-source-code">JSBBbmFseXNpcw0KDQojIFBhY2thZ2VzDQoNCkxvYWQgdGhlIHBhY2thZ2VzIG5lZWRlZCB0byB0aGUgYW5hbHlzaXMNCg0KYGBge3IgbWVzc2FnZT1GQUxTRSwgd2FybmluZz1GQUxTRX0NCmxpYnJhcnkodGlkeXZlcnNlKQ0KbGlicmFyeShkZVNvbHZlKQ0KbGlicmFyeShnZ3RoZW1lcykNCmxpYnJhcnkoY293cGxvdCkNCmxpYnJhcnkodmlyaWRpcykNCmBgYA0KDQojIGBnZ3Bsb3QyYCBnbG9iYWwgdGhlbWUNCg0KYGBge3J9DQp0aGVtZV9zZXQodGhlbWVfbGlnaHQoKSkNCmBgYA0KDQojIGZ1bmN0aW9ucw0KDQpUaGUgZnVjdGlvbiBmb3Igc2ltdWxhdGlvbiBvZiB0aGUgbWVhc3VyZXMgYW5kIHBhcnRpY2xlIGZpbHRlciBhcmUgY2FsbGVkIGhlcmUuIA0KYGBge3J9DQpzb3VyY2UoImxvZ2lzdGljLlIiKQ0Kc291cmNlKCJwYXJ0aWNsZV9maWx0ZXIyLlIiKQ0KYGBgDQoNCiMgRXN0aW1hdGlvbiBmb3IgbG9naXN0aWMgbW9kZWwNCg0KSGVyZSB3ZSBzZXQgdGhlIGluaXRpYWwgdmFsdWVzIGZvciBzaW11bGF0aW9uIG9mIGVhY2ggdHlwZSBvZiBpbmZlY3Rpb24gcmF0ZSBiZWhhdmlvci4NCg0KYGBge3J9DQpsb2dpX3NldHVwID0gbWF0cml4KGMoIkNvbnN0YW50IiwgMC4yLA0KICAiSW5jcmVhc2luZyIsIDAuMDUsDQogICJEZWNyZWFzaW5nIiwgMC4zLA0KICAiU2ludXNvaWRhbCIsIDAuMiwNCiAgIlJhbmRvbSIsIDAuMiksDQogIG5yb3c9NSwNCiAgbmNvbD0sDQogIGJ5cm93ID0gVFJVRSkgDQoNCmBgYA0KDQpSdW4gdGhlIHBhcnRpY2xlIGZpbHRlciBmb3IgZWFjaCB0eXBlIG9mIGluZmVjdGlvbiByYXRlLCBmb3IgZWFjaCB0aW1lIGludGVydmFsIGFuZCBub2lzZQ0KDQpgYGB7ciB3YXJuaW5nPUZBTFNFfQ0Kbm9pc2UgPSBjKDAuMSwgMC4yNSkNCg0KbG9naXN0aWNfYWxsMyA9IGRhdGEuZnJhbWUoKQ0KZm9yKGogaW4gMToyKXsNCmxvZ2lzdGljX2FsbDIgPSBkYXRhLmZyYW1lKCkNCmZvcihrIGluIHNlcSgxLDEwLCBieSA9IDIpKXsNCg0KbG9naXN0aWNfYWxsID0gZGF0YS5mcmFtZSgpDQpmb3IoIGkgaW4gMTo1KXsNCiAgc2V0LnNlZWQoNSkNCmRhdGEgPSBsb2dpc3RpYyhOPSA2MCwgZHQ9MC41LCB5MD0wLjAwMSwgcj1hcy5udW1lcmljKGxvZ2lfc2V0dXBbaSwyXSksIHNkID0gbm9pc2Vbal0sIGluZiA9IGkpDQpkYXRhID0gZGF0YSAlPiUgDQogIGZpbHRlcih0aW1lICVpbiUgYyhzZXEoMCw2MCwgYnkgPSBrKSkpDQpkYXRhX2xvZ2kgPSBkYXRhLmZyYW1lKGluZmVjdGlvbl90eXBlID0gYXMuZmFjdG9yKGxvZ2lfc2V0dXBbaSwxXSksDQogICAgICAgICAgICAgICAgICAgU0lSX2ZpbHRlcihtb2RlbCA9IDEsDQogICAgICAgICAgICAgICAgICAgZ3Vlc3NfciA9IGFzLm51bWVyaWMobG9naV9zZXR1cFtpLDJdKSwNCiAgICAgICAgICAgICAgICAgICBOcGFydGk9MTAwMCwNCiAgICAgICAgICAgICAgICAgICBtZWFzdXJlcyA9IGRhdGEkUmFuZG9uX2ludGVuc2l0eSwNCiAgICAgICAgICAgICAgICAgICB0aW1lID0gZGF0YSR0aW1lLA0KICAgICAgICAgICAgICAgICAgIHNkX21lYXMgPSAwLjI1LA0KICAgICAgICAgICAgICAgICAgIHNkX3BhciA9IDAuMTUsDQogICAgICAgICAgICAgICAgICAgc2RfbW9kZWwgPSAwLjAwNSksDQogICAgICAgICAgICAgICAgICAgeSA9IGRhdGEkSW50ZW5zaXR5LA0KICAgICAgICAgICAgICAgICAgIGluZl9yYXRlID0gZGF0YSRpbmZfcmF0ZSkgIA0KDQpsb2dpc3RpY19hbGwgPSBsb2dpc3RpY19hbGwgJT4lIA0KICBiaW5kX3Jvd3MoZGF0YV9sb2dpKQ0KfQ0KDQpsb2dpc3RpY19hbGwgPSBsb2dpc3RpY19hbGwgJT4lIA0KICBtdXRhdGUodGltZV9pbnRlcnZhbCA9IGspDQogIA0KbG9naXN0aWNfYWxsMiA9IGxvZ2lzdGljX2FsbDIgJT4lIA0KICBiaW5kX3Jvd3MobG9naXN0aWNfYWxsKSANCn0NCiAgbG9naXN0aWNfYWxsMiA9IGxvZ2lzdGljX2FsbDIgJT4lIA0KICAgIG11dGF0ZShub2lzZSA9IG5vaXNlW2pdKQ0KICANCiBsb2dpc3RpY19hbGwzID0gIGxvZ2lzdGljX2FsbDMgJT4lIA0KICAgYmluZF9yb3dzKGxvZ2lzdGljX2FsbDIpIA0KICAgDQp9DQoNCg0KYGBgDQoNCg0KQ2hhbmdpbmcgdGhlIG5hbWVzIG9mIHRoZSBub2lzZSBhbmQgdGltZSBpbnRlcnZhbCAgDQpgYGB7cn0NCmxvZ2lzdGljX2FsbDMgPSBsb2dpc3RpY19hbGwzICU+JSANCiAgbXV0YXRlKG5vaXNlMiA9IG5vaXNlKSAlPiUgDQogIG11dGF0ZShub2lzZSA9IGNhc2Vfd2hlbihub2lzZSA9PSAwLjEwIH4gIlx1MDNiMSA9ICAwLjEwIiwNCiAgICAgICAgICAgICAgICAgICAgICAgICAgIG5vaXNlID09IDAuMjUgfiAiXHUwM2IxID0gIDAuMjUiKSkgJT4lIA0KICAgbXV0YXRlKHRpbWVfaW50ZXJ2YWwyID0gdGltZV9pbnRlcnZhbCkgJT4lIA0KICBtdXRhdGUodGltZV9pbnRlcnZhbCA9IGNhc2Vfd2hlbih0aW1lX2ludGVydmFsID09IDEgfiAiXHUwMzk0dCA9ICAxIiwNCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgdGltZV9pbnRlcnZhbCA9PSAzIH4gIlx1MDM5NHQgPSAgMyIsDQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHRpbWVfaW50ZXJ2YWwgPT0gNSB+ICJcdTAzOTR0ID0gIDUiLA0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB0aW1lX2ludGVydmFsID09IDcgfiAiXHUwMzk0dCA9ICA3IiwNCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgdGltZV9pbnRlcnZhbCA9PSA5IH4gIlx1MDM5NHQgPSAgOSIpKQ0KYGBgDQoNCkRhdGENCg0KYGBge3J9DQpoZWFkIChsb2dpc3RpY19hbGwzKQ0KYGBgDQojIyBWaXN1YWxpemF0aW9uDQoNCg0KVml6dWFsaXphdGlvbiBvZiB0aGUgTm9pc2VkIERpc2Vhc2UgcHJvZ3Jlc3MgY3VydmVzIA0KDQpgYGB7ciBmaWcuaGVpZ2h0PTEwLCBmaWcud2lkdGg9MTB9DQpsb2dpc3RpY19hbGwzICU+JSANCiAgZ2dwbG90KCkrDQogIGdlb21fbGluZShhZXModGltZSxyZWFsU21lYXMsIGNvbG9yID0gaW5mZWN0aW9uX3R5cGUpLA0KICAgICAgICAgICAgc2l6ZSA9IDEuMikrDQoNCiAgZmFjZXRfZ3JpZCh0aW1lX2ludGVydmFsK25vaXNlfmluZmVjdGlvbl90eXBlKSsNCiAgc2NhbGVfZmlsbF9tYW51YWwodmFsdWVzID0gImdyYXkiKSsNCiAgc2NhbGVfY29sb3JfY29sb3JibGluZCgpKw0KICBsYWJzKHggPSAiVGltZSIsDQogICAgICAgeSA9ICJEaXNlYXNlIGludGVuc2l0eSIpKw0KICB0aGVtZShsZWdlbmQucG9zaXRpb24gPSAibm9uZSIsdGV4dCA9IGVsZW1lbnRfdGV4dChzaXplID0gMTYpLA0KICAgICAgICBzdHJpcC50ZXh0ID0gZWxlbWVudF90ZXh0KGNvbG9yID0gImJsYWNrIiksDQogICAgICAgIHN0cmlwLmJhY2tncm91bmQgPSBlbGVtZW50X3JlY3QoZmlsbD0id2hpdGUiKSkrDQogIHNjYWxlX3lfY29udGludW91cyhicmVha3MgPSBzZXEoMCwxLCAwLjI1KSkNCmdnc2F2ZSgiZmlncy9sb2dpc3RpY19ub2lzZWQucG5nIiwgZHBpPTMwMCwgaGVpZ2h0ID0gMTIsIHdpZHRoID0gOCkNCmBgYA0KDQoNClZpenVhbGl6YXRpb24gb2YgdGhlIHBhcmFtZXRlciBlc3RpbWF0aW9uDQoNCmBgYHtyIGZpZy5oZWlnaHQ9MTAsIGZpZy53aWR0aD0xMH0NCg0KbG9naXN0aWNfYWxsMyAlPiUgDQogIGdncGxvdCgpKw0KICBnZW9tX3JpYmJvbihhZXModGltZSwgeW1pbiA9ICh1YmRzaXJvKSwgeW1heCA9IChsYmRzaXJvKSwgZmlsbCA9ICJJYyA5OSUiKSwgYWxwaGEgPSAwLjUsIHN0YXQgPSAiaWRlbnRpdHkiKSArDQogIGdlb21fbGluZShhZXModGltZSxpbmZfcmF0ZSwgY29sb3IgPSBpbmZlY3Rpb25fdHlwZSksDQogICAgICAgICAgICBzaXplID0gMS4yKSsNCiAgZ2VvbV9wb2ludChhZXModGltZSxzaW50aSksDQogICAgICAgICAgICAgc2l6ZSA9IDIsIGFscGhhID0gMSkrDQogIGZhY2V0X2dyaWQodGltZV9pbnRlcnZhbCtub2lzZX5pbmZlY3Rpb25fdHlwZSwgc2NhbGVzID0gImZyZWVfeSIpKw0KICBzY2FsZV9maWxsX21hbnVhbCh2YWx1ZXMgPSAiZ3JheSIpKw0KICBzY2FsZV9jb2xvcl9jb2xvcmJsaW5kKCkrDQogIGxhYnMoeCA9ICJUaW1lIiwNCiAgICAgICB5ID0gIkFwcGFyZW50IGluZmVjdGlvbiByYXRlIikrDQogIHRoZW1lKGxlZ2VuZC5wb3NpdGlvbiA9ICJub25lIix0ZXh0ID0gZWxlbWVudF90ZXh0KHNpemUgPSAxNCksDQogICAgICAgIHN0cmlwLnRleHQgPSBlbGVtZW50X3RleHQoY29sb3IgPSAiYmxhY2siKSwNCiAgICAgICAgc3RyaXAuYmFja2dyb3VuZCA9IGVsZW1lbnRfcmVjdChmaWxsPSJ3aGl0ZSIpKSsNCiAgc2NhbGVfeV9jb250aW51b3VzKGJyZWFrcyA9IHNlcSgtMiwyLCAwLjIpKQ0KDQpnZ3NhdmUoImZpZ3MvbG9naXN0aWNfYWlyLnBuZyIsIGRwaT0zMDAsIGhlaWdodCA9IDEyLCB3aWR0aCA9IDgpDQpgYGANCg0KVmlzdWFsaXphdGlvbiBvZiB0aGUgZGlzZWFzZSBpbnRlbnNpdHkgZXN0aW1hdGlvbiANCg0KYGBge3IgZmlnLmhlaWdodD0xMCwgZmlnLndpZHRoPTEwfQ0KbG9naXN0aWNfYWxsMyAlPiUgDQogIGdncGxvdCgpKw0KICBnZW9tX3JpYmJvbihhZXModGltZSwgeW1pbiA9ICh1YmRzaXIpLCB5bWF4ID0gKGxiZHNpciksIGZpbGwgPSAiSWMgOTklIiksIGFscGhhID0gMC41LCBzdGF0ID0gImlkZW50aXR5IikgKw0KICBnZW9tX2xpbmUoYWVzKHRpbWUseSwgY29sb3IgPSBpbmZlY3Rpb25fdHlwZSksDQogICAgICAgICAgICBzaXplID0gMS4yKSsNCiAgZ2VvbV9wb2ludChhZXModGltZSx4ZXN0c2lyKSwNCiAgICAgICAgICAgICAgc2l6ZSA9IDEuNSwgYWxwaGEgPSAwLjcpKw0KICBmYWNldF9ncmlkKHRpbWVfaW50ZXJ2YWwrbm9pc2V+aW5mZWN0aW9uX3R5cGUpKw0KICBzY2FsZV9maWxsX21hbnVhbCh2YWx1ZXMgPSAiZ3JheSIpKw0KICBzY2FsZV9jb2xvcl9jb2xvcmJsaW5kKCkrDQogIGxhYnMoeCA9ICJUaW1lIiwNCiAgICAgICB5ID0gIkRpc2Vhc2UgaW50ZW5zaXR5IikrDQogIHRoZW1lKGxlZ2VuZC5wb3NpdGlvbiA9ICJub25lIix0ZXh0ID0gZWxlbWVudF90ZXh0KHNpemUgPSAxNiksDQogICAgICAgIHN0cmlwLnRleHQgPSBlbGVtZW50X3RleHQoY29sb3IgPSAiYmxhY2siKSwNCiAgICAgICAgc3RyaXAuYmFja2dyb3VuZCA9IGVsZW1lbnRfcmVjdChmaWxsPSJ3aGl0ZSIpKSsNCiAgc2NhbGVfeV9jb250aW51b3VzKGJyZWFrcyA9IHNlcSgwLDEsIDAuMjUpKQ0KZ2dzYXZlKCJmaWdzL2xvZ2lzdGljX2N1cnZlLnBuZyIsIGRwaT0zMDAsIGhlaWdodCA9IDEyLCB3aWR0aCA9IDgpDQpgYGANCg0KDQoNCiMjIEFjdXJhY3kNCg0KYGBge3Igd2FybmluZz1GQUxTRX0NCmEgPSBsb2dpc3RpY19hbGwzICU+JSANCiAgZ3JvdXBfYnkoaW5mZWN0aW9uX3R5cGUsdGltZV9pbnRlcnZhbDIsIG5vaXNlKSAlPiUNCiAgbXV0YXRlKHJtc2kgPSAoaW5mX3JhdGUgLSBzaW50aSleMiwNCiAgICAgICAgIG1hZWkgPSBhYnMoaW5mX3JhdGUgLSBzaW50aSkpICU+JSANCiAgc3VtbWFyaXNlKFJNUyA9IHNxcnQoKDEvKGxlbmd0aChpbmZfcmF0ZSkpKSpzdW0ocm1zaSwgbmEucm0gPSBUKSkpICU+JSANCiAgbXV0YXRlKG1vZGVsID0gIkxvZ2lzdGljIikNCg0KYWN1cmFjeV9sb2dpID0gYQ0KDQpoZWFkKGFjdXJhY3lfbG9naSkNCmBgYA0KDQojIENhbGN1bGF0ZSB0aGUgQXBwYXJlbnQgaW5mZWN0aW9uIHJhdGUNCg0KVXNpbmcgdGhlIGZvbGxvd2luZyBlcXVhdGlvbiB3ZSBjYWxjdWxhdGVkIHRoZSB0aW1lIHZpcnlpbmcgcg0KDQokJCByX3tpKzF9ID0gXGZyYWMge1tsbihcZnJhYyB7eV97aSsxfX17MS15X3tpKzF9fSkgLWxuKFxmcmFjIHt5X3tpfX17MS15X3tpfX0pIF19e3Rfe2krMX0gLSB0X3tpfX0gJCQNCg0KYGBge3J9DQpjYWxjX3JfbG9nID0gbG9naXN0aWNfYWxsMyAlPiUNCiAgZ3JvdXBfYnkoaW5mZWN0aW9uX3R5cGUsdGltZV9pbnRlcnZhbCxub2lzZSkgJT4lIA0KICBtdXRhdGUocl9jYWxjID0gKGxvZyhyZWFsU21lYXMvKDEtcmVhbFNtZWFzKSkgLSBsb2coKGxhZyhyZWFsU21lYXMsMSkvKDEtKGxhZyhyZWFsU21lYXMsMSkpKSkpKS8odGltZSAtIGxhZyh0aW1lLDEpKSkgJT4lIA0KICBtdXRhdGUobW9kZWwgPSAiTG9naXN0aWMiKQ0KDQoNCmNhbGN1bGF0ZWRfciA9IGNhbGNfcl9sb2cNCmhlYWQoY2FsY3VsYXRlZF9yICU+JSANCiAgICAgICB1bmdyb3VwKCkgJT4lIA0KICAgICAgIHNlbGVjdChpbmZlY3Rpb25fdHlwZSwgdGltZSxub2lzZSx0aW1lX2ludGVydmFsMiwgcl9jYWxjKSkNCmBgYA0KDQojIyBWaXN1YWxpemF0aW9uDQoNCg0KDQpgYGB7ciBmaWcuaGVpZ2h0PTEwLCBmaWcud2lkdGg9MTB9DQoNCmNhbGN1bGF0ZWRfciAlPiUNCiAgZ2dwbG90KCkrDQogIGdlb21fbGluZShhZXModGltZSxpbmZfcmF0ZSwgY29sb3IgPSBpbmZlY3Rpb25fdHlwZSksDQogICAgICAgICAgICBzaXplID0gMS4yKSsNCiAgZ2VvbV9wb2ludChhZXModGltZSxyX2NhbGMpLA0KICAgICAgICAgICAgIHNpemUgPSAyLA0KICAgICAgICAgICAgIGFscGhhID0gMSkrDQogIGZhY2V0X2dyaWQodGltZV9pbnRlcnZhbCtub2lzZX5pbmZlY3Rpb25fdHlwZSwgc2NhbGVzID0gImZyZWVfeSIpKw0KICBzY2FsZV9maWxsX3ZpcmlkaXMoKSsNCiAgc2NhbGVfY29sb3JfY29sb3JibGluZCgpKw0KICBsYWJzKHggPSAiVGltZSIsDQogICAgICAgeSA9ICJBcHBhcmVudCBpbmZlY3Rpb24gcmF0ZSIpKw0KICBndWlkZXMoY29sb3I9IGd1aWRlX2xlZ2VuZCgibm9uZSIpKSsNCiAgdGhlbWUodGV4dCA9IGVsZW1lbnRfdGV4dChzaXplID0gMTQpLCBsZWdlbmQucG9zaXRpb24gPSAibm9uZSIsDQogICAgICAgIHN0cmlwLnRleHQgPSBlbGVtZW50X3RleHQoY29sb3IgPSAiYmxhY2siKSwNCiAgICAgICAgc3RyaXAuYmFja2dyb3VuZCA9IGVsZW1lbnRfcmVjdChmaWxsPSJ3aGl0ZSIpKQ0KDQogZ2dzYXZlKCJmaWdzL3JfY2FsY19sb2dpLnBuZyIsIGRwaT0zMDAsIGhlaWdodCA9IDEyLCB3aWR0aCA9IDgpDQoNCmBgYA0KDQojIyBBY3VyYWN5DQoNCmBgYHtyIHdhcm5pbmc9RkFMU0V9DQphY3VyYWN5X2NhbGMgPSBjYWxjdWxhdGVkX3IlPiUgDQogIGZpbHRlcihyX2NhbGMgIT0gaXMubmEocl9jYWxjKSkgJT4lIA0KICBncm91cF9ieShpbmZlY3Rpb25fdHlwZSwgdGltZV9pbnRlcnZhbDIsbm9pc2UpICU+JSANCiAgbXV0YXRlKHJtc2kgPSAoaW5mX3JhdGUgLSByX2NhbGMpXjIsDQogICAgICAgICBtYWVpID0gYWJzKGluZl9yYXRlIC0gcl9jYWxjKSkgJT4lIA0KICBzdW1tYXJpc2UoUk1TID0gc3FydCgoMS8obGVuZ3RoKGluZl9yYXRlKSkpKnN1bShybXNpLCBuYS5ybSA9IFQpKSkNCmhlYWQoYWN1cmFjeV9jYWxjKQ0KDQpgYGANCg0KIyBWaXN1YWxpemF0aW9uIA0KDQojIyBSTVMgDQogcGxvdHRpbmcgdGhlIFJNUyANCg0KYGBge3J9DQpnZ3Bsb3QoKSsNCiAgZ2VvbV9saW5lKGRhdGEgPWFjdXJhY3lfY2FsYywgYWVzKHRpbWVfaW50ZXJ2YWwyLCBSTVMsIGNvbG9yID0gIkNhbGN1bGF0ZWQiLCBsaW5ldHlwZSA9IGFzLmZhY3Rvcihub2lzZSkpLA0KICAgICAgICAgICAgc2l6ZSA9IDEpKw0KICBnZW9tX3BvaW50KGRhdGEgPWFjdXJhY3lfY2FsYywgYWVzKHRpbWVfaW50ZXJ2YWwyLCBSTVMsIGNvbG9yID0gIkNhbGN1bGF0ZWQiKSwNCiAgICAgICAgICAgIHNpemUgPSAyLjUpKw0KICBnZW9tX2xpbmUoZGF0YSA9YWN1cmFjeV9sb2dpLCBhZXModGltZV9pbnRlcnZhbDIsIFJNUywgY29sb3IgPSAiRXN0aW1hdGVkIiwgbGluZXR5cGUgPSBhcy5mYWN0b3Iobm9pc2UpKSwNCiAgICAgICAgICAgIHNpemUgPSAxKSsNCiAgZ2VvbV9wb2ludChkYXRhID1hY3VyYWN5X2xvZ2ksIGFlcyh0aW1lX2ludGVydmFsMiwgUk1TLCBjb2xvciA9ICJFc3RpbWF0ZWQiLCksDQogICAgICAgICAgICBzaXplID0gMi41KSsNCiAgc2NhbGVfY29sb3JfY29sb3JibGluZCgiciIpKw0KICBzY2FsZV94X2NvbnRpbnVvdXMoYnJlYWtzID0gc2VxKDEsOSxieT0yKSkrDQogIHNjYWxlX2xpbmV0eXBlX21hbnVhbCh2YWx1ZXMgPSBjKCJzb2xpZCIsImRhc2hlZCIpKSsNCiAgZmFjZXRfZ3JpZCh+aW5mZWN0aW9uX3R5cGUpKw0KICBndWlkZXMobGluZXR5cGU9Z3VpZGVfbGVnZW5kKGtleXdpZHRoID0gMiwga2V5aGVpZ2h0ID0gMSksDQogICAgICAgICBjb2xvcj1ndWlkZV9sZWdlbmQoa2V5d2lkdGggPSAyLCBrZXloZWlnaHQgPSAxKSkrDQogIGxhYnMoeCA9ICJUaW1lIGludGVydmFsIiwgeSA9ICJSTVNFIiwgbGluZXR5cGUgID0gIk5vaXNlIikrDQogIHRoZW1lKGxlZ2VuZC5wb3NpdGlvbiA9ICJib3R0b20iLA0KICAgICAgICB0ZXh0ID0gZWxlbWVudF90ZXh0KHNpemUgPSAxNCksDQogICAgICAgIHN0cmlwLnRleHQgPSBlbGVtZW50X3RleHQoY29sb3IgPSAiYmxhY2siKSwNCiAgICAgICAgc3RyaXAuYmFja2dyb3VuZCA9IGVsZW1lbnRfcmVjdChmaWxsPSJ3aGl0ZSIpKQ0KDQpnZ3NhdmUoImZpZ3MvUk1TLnBuZyIsIGRwaT0zMDAsIGhlaWdodCA9IDUsIHdpZHRoID0gMTEpDQpgYGANCg0KIyMgRGlzZWFzZSBwcm9ncmVzcyBjdXJ2ZXMNCg0KYGBge3IgZmlnLmhlaWdodD05LCBmaWcud2lkdGg9Nn0NCnBsb3RfZ3JpZCgNCnBsb3RfZ3JpZChsb2dpc3RpY19hbGwzICU+JQ0KICBmaWx0ZXIodGltZV9pbnRlcnZhbDI9PTMgKSAlPiUgDQogIGdncGxvdCgpKw0KICAgIGdlb21fcG9pbnQoYWVzKHRpbWUseSwgY29sb3IgPSBpbmZlY3Rpb25fdHlwZSksc2l6ZSA9IDIuNSwgYWxwaGEgPSAxKSsNCiAgICBnZW9tX2xpbmUoYWVzKHRpbWUseSwgY29sb3IgPSBpbmZlY3Rpb25fdHlwZSksc2l6ZSA9IDEsIGFscGhhID0gLjYpKw0KICAgIHNjYWxlX2ZpbGxfbWFudWFsKHZhbHVlcyA9ICJncmF5IikrDQogICAgc2NhbGVfY29sb3JfY29sb3JibGluZCgpKw0KICAgIGxhYnMoeCA9ICJUaW1lIiwNCiAgICAgICAgIHkgPSAiRGlzZWFzZSBpbnRlbnNpdHkiLCBjb2xvciA9ICJBSVIiKSsNCiAgICB0aGVtZSh0ZXh0ID0gZWxlbWVudF90ZXh0KHNpemUgPSAxNiksbGVnZW5kLnBvc2l0aW9uID0gIm5vbmUiLCBheGlzLnRpdGxlLnggPSBlbGVtZW50X3RleHQoY29sb3IgPSJ3aGl0ZSIpKSsNCiAgICBzY2FsZV95X2NvbnRpbnVvdXMoYnJlYWtzID0gc2VxKDAsMSwgMC4yNSkpLA0KDQpsb2dpc3RpY19hbGwzICU+JQ0KICBmaWx0ZXIodGltZV9pbnRlcnZhbDI9PTMgJiBub2lzZTIgPT0gMC4xICkgJT4lIA0KICBnZ3Bsb3QoKSsNCiAgZ2VvbV9wb2ludChhZXModGltZSxyZWFsU21lYXMsIGNvbG9yID0gaW5mZWN0aW9uX3R5cGUpLHNpemUgPSAyLjUsIGFscGhhID0gMSkrDQogICAgZ2VvbV9saW5lKGFlcyh0aW1lLHJlYWxTbWVhcywgY29sb3IgPSBpbmZlY3Rpb25fdHlwZSksc2l6ZSA9IDEsIGFscGhhID0gLjYpKw0KICAgIHNjYWxlX2ZpbGxfbWFudWFsKHZhbHVlcyA9ICJncmF5IikrDQogICAgc2NhbGVfY29sb3JfY29sb3JibGluZCgpKw0KICAgIGxhYnMoeCA9ICJUaW1lIiwNCiAgICAgICAgIHkgPSAiRGlzZWFzZSBpbnRlbnNpdHkiLCBjb2xvciA9ICJBSVIiKSsNCiAgICB0aGVtZSh0ZXh0ID0gZWxlbWVudF90ZXh0KHNpemUgPSAxNiksbGVnZW5kLnBvc2l0aW9uID0gIm5vbmUiLCBheGlzLnRpdGxlLnggPSBlbGVtZW50X3RleHQoY29sb3IgPSJ3aGl0ZSIpKSsNCiAgICBzY2FsZV95X2NvbnRpbnVvdXMoYnJlYWtzID0gc2VxKDAsMSwgMC4yNSkpLA0KDQpsb2dpc3RpY19hbGwzICU+JQ0KICBmaWx0ZXIodGltZV9pbnRlcnZhbDI9PTMgJiBub2lzZTIgPT0gMC4yNSkgJT4lIA0KICBnZ3Bsb3QoKSsNCiAgICBnZW9tX3BvaW50KGFlcyh0aW1lLHJlYWxTbWVhcywgY29sb3IgPSBpbmZlY3Rpb25fdHlwZSksc2l6ZSA9IDIuNSwgYWxwaGEgPSAxKSsNCiAgZ2VvbV9saW5lKGFlcyh0aW1lLHJlYWxTbWVhcywgY29sb3IgPSBpbmZlY3Rpb25fdHlwZSksc2l6ZSA9IDEsIGFscGhhID0gLjYpKw0KDQogICAgc2NhbGVfZmlsbF9tYW51YWwodmFsdWVzID0gImdyYXkiKSsNCiAgICBzY2FsZV9jb2xvcl9jb2xvcmJsaW5kKCkrDQogICAgbGFicyh4ID0gIlRpbWUiLA0KICAgICAgICAgeSA9ICJEaXNlYXNlIGludGVuc2l0eSIsIGNvbG9yID0gIiIpKw0KICAgIHRoZW1lKHRleHQgPSBlbGVtZW50X3RleHQoc2l6ZSA9IDE2KSxsZWdlbmQucG9zaXRpb24gPSAibm9uZSIpKw0KICAgIHNjYWxlX3lfY29udGludW91cyhicmVha3MgPSBzZXEoMCwxLCAwLjI1KSksDQpucm93ID0gMywgcmVsX2hlaWdodHMgPSAgYygwLjgzLDAuODMsMSksIGxhYmVscyA9ICJBVVRPIikNCg0KLA0KYSA9IGdldF9sZWdlbmQobG9naXN0aWNfYWxsMyAlPiUNCiAgZmlsdGVyKHRpbWVfaW50ZXJ2YWwyPT0zICYgbm9pc2UyID09IDAuMjUpICU+JSANCiAgZ2dwbG90KCkrDQogICAgZ2VvbV9wb2ludChhZXModGltZSxyZWFsU21lYXMsIGNvbG9yID0gaW5mZWN0aW9uX3R5cGUpLHNpemUgPSAyLjUsIGFscGhhID0gMSkrDQogIGdlb21fbGluZShhZXModGltZSxyZWFsU21lYXMsIGNvbG9yID0gaW5mZWN0aW9uX3R5cGUpLHNpemUgPSAxLCBhbHBoYSA9IC42KSsNCg0KICAgIHNjYWxlX2ZpbGxfbWFudWFsKHZhbHVlcyA9ICJncmF5IikrDQogICAgc2NhbGVfY29sb3JfY29sb3JibGluZCgpKw0KICAgIGxhYnMoeCA9ICJUaW1lIiwNCiAgICAgICAgIHkgPSAiRGlzZWFzZSBpbnRlbnNpdHkiLCBjb2xvciA9ICIiKSsNCiAgICB0aGVtZSh0ZXh0ID0gZWxlbWVudF90ZXh0KHNpemUgPSAxNiksbGVnZW5kLnBvc2l0aW9uID0gInJpZ2h0IikrDQogICAgc2NhbGVfeV9jb250aW51b3VzKGJyZWFrcyA9IHNlcSgwLDEsIDAuMjUpKSksIHJlbF93aWR0aHMgPSBjKDEsMC40KSkNCg0KZ2dzYXZlKCJmaWdzL0RQQ3MucG5nIiwgZHBpPTMwMCwgaGVpZ2h0ID0gOSwgd2lkdGggPTcpDQpgYGANCg0KIyMgRXN0aW1hdGVzIGZvciBpbmNyZWFzaW5nIHBhcmFtZXRlcg0KDQoNCmBgYHtyIGZpZy5oZWlnaHQ9OCwgZmlnLndpZHRoPTd9DQojIHBsb3RfZ3JpZCgNCiAgbG9naXN0aWNfYWxsMyAlPiUNCiAgICBtdXRhdGUoQXBwcm9hY2ggPSAiRXN0aW1hdGVkIikgJT4lIA0KICAgIGJpbmRfcm93cyhjYWxjdWxhdGVkX3IlPiUgDQogICAgICAgICAgICAgICAgbXV0YXRlKEFwcHJvYWNoID0gIkNhbGN1bGF0ZWQiLHNpbnRpID0gcl9jYWxjKSkgJT4lIA0KICAgIGZpbHRlcihpbmZlY3Rpb25fdHlwZSA9PSAiSW5jcmVhc2luZyIpICU+JSANCiAgICBmaWx0ZXIodGltZV9pbnRlcnZhbDIgJWluJSBjKDEsNSkpICU+JSANCiAgICBnZ3Bsb3QoKSsNCiAgICBnZW9tX3JpYmJvbihhZXModGltZSwgeW1pbiA9IHViZHNpcm8sIHltYXggPSBsYmRzaXJvLGFscGhhID0gQXBwcm9hY2gsIGZpbGwgPSAiOTklIENJIiksIHN0YXQgPSAiaWRlbnRpdHkiKSsNCiAgICBnZW9tX2xpbmUoYWVzKHRpbWUsIGluZl9yYXRlLCBjb2xvciA9IHRpbWVfaW50ZXJ2YWwpLHNpemUgPSAxLjUpKw0KICAgIGd1aWRlcyhhbHBoYSA9IGd1aWRlX2xlZ2VuZCgibm9uZSIpKSsNCiAgICBnZW9tX3BvaW50KGFlcyh0aW1lLCBzaW50aSkpKw0KICAjIGZhY2V0X3dyYXAobm9pc2UrdGltZV9pbnRlcnZhbH5BcHByb2FjaCkrDQogICAgZmFjZXRfZ3JpZChub2lzZSt0aW1lX2ludGVydmFsfkFwcHJvYWNoKSsNCiAgICBzY2FsZV9hbHBoYV9kaXNjcmV0ZShyYW5nZSA9IGMoMCwgMC41KSkrDQogICAgc2NhbGVfY29sb3JfY29sb3JibGluZCgpKw0KICAgIHNjYWxlX2ZpbGxfbWFudWFsKHZhbHVlcyA9ICJncmF5IikrDQogIGxhYnMoeCA9ICJUaW1lIiwgeSA9ICJBcHBhcmVudCBpbmZlY3Rpb24gcmF0ZSIsIGZpbGwgPSAiIiwgY29sb3I9ICIiKSsNCiAgdGhlbWUobGVnZW5kLnBvc2l0aW9uID0gImJvdHRvbSIsIHRleHQgPSBlbGVtZW50X3RleHQoc2l6ZSA9IDE2KSwNCiAgICAgICAgc3RyaXAudGV4dCA9IGVsZW1lbnRfdGV4dChjb2xvciA9ICJibGFjayIpLA0KICAgICAgICBzdHJpcC5iYWNrZ3JvdW5kID0gZWxlbWVudF9yZWN0KGZpbGw9IndoaXRlIikpDQogIA0KZ2dzYXZlKCJmaWdzL0ZpZzUucG5nIiwgZHBpPTMwMCwgaGVpZ2h0ID0gOCwgd2lkdGggPSA2KQ0KDQoNCmBgYA0KDQo=</div>
-
-
-Copyright 2017 Emerson Del Ponte
+<br><br>
+Copyright 2019 Alves & Del Ponte
 
 
 </div>

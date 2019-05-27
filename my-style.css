@@ -1,34 +1,43 @@
+
+@import url('https://fonts.googleapis.com/css?family=Roboto+Condensed:400');
+@import url('https://fonts.googleapis.com/css?family=Oswald');
+
+
 body {
 margin:0px;
 padding:0px;
 width:100%;
-font-size: 1.8em;
+font-size: 1.9em;
 line-height: 170%
 }
 
 img {
  margin-top: 40px;
- margin-bottom: 40px
+ margin-bottom: 40px; 
+ margin: 20px;
 }
 
 h1,h2,h3,h4 {
-margin-bottom: 20px;
-margin-top: 15px;
-padding-top: 5px;
-font-family: 'Roboto', sans-serif;
+margin-bottom: 10px;
+margin-top: 40px;
+padding-top: 40px;
+padding-bottom: 10px;
+font-family: 'Roboto Condensed', sans-serif;
 display: inline-block;
 width:100%
 }
 }
+
 h1.title {
-font-family: 'Roboto', sans-serif;
+font-family: 'Oswald', sans-serif;
 font-size: 32px;
-line-height: 100%
+line-height: 100%;
+margin-bottom: 20px;
 }
 
 pre code, pre, code {
  margin-top: 30px;
- margin-bottom: 20px;
+ margin-bottom: 50px;
  font-size: 0.9em;
   white-space: pre !important;
   overflow-x: scroll !important;
@@ -39,7 +48,7 @@ pre code, pre, code {
 
 blockquote {
 margin-top: 20px;
-margin-bottom: 30px;
+margin-bottom: 50px;
 font-size: 0.9em;
 line-height:130%;
 background-color: #f2f2f2;

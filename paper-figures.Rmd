@@ -1,0 +1,165 @@
+% Figures
+
+Three figures were prepared to show in the main text of the manuscript.
+
+
+## Fig. 1. Diagram
+
+A diagram was created using Google Draw.
+
+<div align = center>
+<img src = "figs/fig1.png">
+</div>
+
+Fig. 1. Workflow of the approach for generating synthetic epidemics by the differential logistic model with different patterns of time-varying apparent infection rate (rt), and evaluating the performance of a Sequential Importance Resampling Particle Filter (SIR-PF) algorithm to obtain/update rtover time. The error of the PF-derived estimates and logit-derived calculated rates were evaluated by the root mean square error (RMSE) as a measure of accuracy. SIF-PF scheme adapted from Dias et al. (2017).
+
+## Fig 2. Disease curves
+
+A figure panel with three plots, each depicting five DPCs for each _r(y)_ pattern, varying the level of noise applied to the measures were prepared.
+
+```{r fig.height=9, fig.width=6}
+plot_grid(
+  plot_grid(logistic_all3 %>%
+    filter(time_interval2 == 3) %>%
+    ggplot() +
+    geom_point(aes(time, y, color = infection_type), size = 2.5, alpha = 1) +
+    geom_line(aes(time, y, color = infection_type), size = 1, alpha = .6) +
+    scale_fill_manual(values = "gray") +
+    scale_color_colorblind() +
+    labs(
+      x = "Time",
+      y = "Disease intensity", color = "AIR"
+    ) +
+    theme(text = element_text(size = 16), legend.position = "none", axis.title.x = element_text(color = "white")) +
+    scale_y_continuous(breaks = seq(0, 1, 0.25)),
+
+  logistic_all3 %>%
+    filter(time_interval2 == 3 & noise2 == 0.1) %>%
+    ggplot() +
+    geom_point(aes(time, realSmeas, color = infection_type), size = 2.5, alpha = 1) +
+    geom_line(aes(time, realSmeas, color = infection_type), size = 1, alpha = .6) +
+    scale_fill_manual(values = "gray") +
+    scale_color_colorblind() +
+    labs(
+      x = "Time",
+      y = "Disease intensity", color = "AIR"
+    ) +
+    theme(text = element_text(size = 16), legend.position = "none", axis.title.x = element_text(color = "white")) +
+    scale_y_continuous(breaks = seq(0, 1, 0.25)),
+
+  logistic_all3 %>%
+    filter(time_interval2 == 3 & noise2 == 0.25) %>%
+    ggplot() +
+    geom_point(aes(time, realSmeas, color = infection_type), size = 2.5, alpha = 1) +
+    geom_line(aes(time, realSmeas, color = infection_type), size = 1, alpha = .6) +
+
+    scale_fill_manual(values = "gray") +
+    scale_color_colorblind() +
+    labs(
+      x = "Time",
+      y = "Disease intensity", color = ""
+    ) +
+    theme(text = element_text(size = 16), legend.position = "none") +
+    scale_y_continuous(breaks = seq(0, 1, 0.25)),
+  nrow = 3, rel_heights = c(0.83, 0.83, 1), labels = "AUTO"
+  ),
+  a = get_legend(logistic_all3 %>%
+    filter(time_interval2 == 3 & noise2 == 0.25) %>%
+    ggplot() +
+    geom_point(aes(time, realSmeas, color = infection_type), size = 2.5, alpha = 1) +
+    geom_line(aes(time, realSmeas, color = infection_type), size = 1, alpha = .6) +
+
+    scale_fill_manual(values = "gray") +
+    scale_color_colorblind() +
+    labs(
+      x = "Time",
+      y = "Disease intensity", color = ""
+    ) +
+    theme(text = element_text(size = 16), legend.position = "right") +
+    scale_y_continuous(breaks = seq(0, 1, 0.25))), rel_widths = c(1, 0.4)
+)
+
+ggsave("figs/fig2.png", dpi = 300, height = 9, width = 7)
+```
+
+
+Fig. 2. Generation of synthetic disease progress curves (DPCs) data using a differential logistic model with five different temporal patterns of rt(colored dotted lines - see equations in Table 1). (A) No noise in disease intensity; (B) 10% noise (=0.1); and (C) 25% noise (=0.25).
+
+## Fig. 3. Time varying r
+
+We finally produced for the main text of the article one figure with four epidemics each depicting either 1 or 5 time units as interval and either 0.1 or 0.25 noise in the measures.
+
+
+```{r fig.height=8, fig.width=7}
+# plot_grid(
+logistic_all3 %>%
+  mutate(Approach = "Estimated") %>%
+  bind_rows(calculated_r %>%
+    mutate(Approach = "Calculated", sinti = r_calc)) %>%
+  filter(infection_type == "Increasing") %>%
+  filter(time_interval2 %in% c(1, 5)) %>%
+  ggplot() +
+  geom_ribbon(aes(time, ymin = ubdsiro, ymax = lbdsiro, alpha = Approach, fill = "99% CI"), stat = "identity") +
+  geom_line(aes(time, inf_rate, color = time_interval), size = 1.5) +
+  guides(alpha = guide_legend("none")) +
+  geom_point(aes(time, sinti)) +
+  # facet_wrap(noise+time_interval~Approach)+
+  facet_grid(noise + time_interval ~ Approach) +
+  scale_alpha_discrete(range = c(0, 0.5)) +
+  scale_color_colorblind() +
+  scale_fill_manual(values = "gray") +
+  labs(x = "Time", y = "Apparent infection rate", fill = "", color = "") +
+  theme(
+    legend.position = "bottom", text = element_text(size = 16),
+    strip.text = element_text(color = "black"),
+    strip.background = element_rect(fill = "white")
+  )
+
+ggsave("figs/Fig3.png", dpi = 300, height = 8, width = 6)
+```
+
+Fig. 3. Increasing apparent infection rate rt obtained by a rearrangement of the logistic model (left panel) or an estimation method based on the sequential importance resampling particle-filter approach (SIR-PF) (right panel) for scenarios of two intervals between two assessments (delta t =1 time unit and delta t = 5 time units) and two levels of noise (alpha =0.10 and alpha =0.25)assigned to disease intensity data. Solid line represents original simulated increasing r values and particle filter- and logit-derived rt are represented by the dots at the respective panel.
+
+## Fig. 4. RMSE
+
+In the article, we prepared a figure depecting the RMSE of the estimates by both methods for each epidemic.
+
+```{r}
+ggplot() +
+  geom_line(
+    data = acuracy_calc, aes(time_interval2, RMS, color = "Calculated", linetype = as.factor(noise)),
+    size = 1
+  ) +
+  geom_point(
+    data = acuracy_calc, aes(time_interval2, RMS, color = "Calculated"),
+    size = 2.5
+  ) +
+  geom_line(
+    data = acuracy_logi, aes(time_interval2, RMS, color = "Estimated", linetype = as.factor(noise)),
+    size = 1
+  ) +
+  geom_point(
+    data = acuracy_logi, aes(time_interval2, RMS, color = "Estimated", ),
+    size = 2.5
+  ) +
+  scale_color_colorblind("r") +
+  scale_x_continuous(breaks = seq(1, 9, by = 2)) +
+  scale_linetype_manual(values = c("solid", "dashed")) +
+  facet_grid(~infection_type) +
+  guides(
+    linetype = guide_legend(keywidth = 2, keyheight = 1),
+    color = guide_legend(keywidth = 2, keyheight = 1)
+  ) +
+  labs(x = "Time interval", y = "RMSE", linetype = "Noise") +
+  theme(
+    legend.position = "bottom",
+    text = element_text(size = 14),
+    strip.text = element_text(color = "black"),
+    strip.background = element_rect(fill = "white")
+  )
+
+ggsave("figs/fig4.png", dpi = 300, height = 5, width = 11)
+```
+
+
+Fig. 4. Accuracy evaluation based on the root mean square error (RMSE) of estimation/calculation of the apparent infection rate rt using two methods for recovering it, the first a sequential importance resampling particle-filter (SIR-PF), and the second based on the rearrangement of the logistic model, both compared with simulated rates to account for five systematic rt patterns (each plot in the panel). The methods were evaluated for different time length (in time units) between two assessments and two levels of noise level assigned to simulated disease intensity simulated by a differential logistic model.

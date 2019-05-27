@@ -4,9 +4,9 @@ output:
   html_document:
     code_download: true
     css: my-style.css
-    theme: cosmo 
+    theme: flatly
     df_print: paged
-    highlight: default
+    highlight: textmate
     include:
       after_body: footer.md
     toc: yes
@@ -18,7 +18,7 @@ output:
 bibliography: crossref.bib
 csl: chicago-author-date.csl
 navbar:
-  title: Time varying infection rate
+  title: Particle Filter - Infection Rate 
   left:
   - text: About
     icon: fa fa-home
@@ -26,6 +26,9 @@ navbar:
   - text: Analysis 
     icon: fa fa-file-code-o
     href: main_code.html
+  - text: Figures
+    icon: fa fa-file-code-o
+    href: paper-figures.html
     
   right:
   - text: source

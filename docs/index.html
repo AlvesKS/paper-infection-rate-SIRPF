@@ -15,7 +15,7 @@
 
 <script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<link href="site_libs/bootstrap-3.3.5/css/flatly.min.css" rel="stylesheet" />
 <script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
@@ -25,7 +25,7 @@
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
 <script src="site_libs/navigation-1.1/codefolding.js"></script>
 <script src="site_libs/navigation-1.1/sourceembed.js"></script>
-<link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
 <script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
 <link href="site_libs/pagedtable-1.1/css/pagedtable.css" rel="stylesheet" />
 <script src="site_libs/pagedtable-1.1/js/pagedtable.js"></script>
@@ -116,33 +116,33 @@ summary {
 <style type="text/css">
 /* padding for bootstrap navbar */
 body {
-  padding-top: 51px;
+  padding-top: 60px;
   padding-bottom: 40px;
 }
 /* offset scroll position for anchor links (for fixed navbar)  */
 .section h1 {
-  padding-top: 56px;
-  margin-top: -56px;
+  padding-top: 65px;
+  margin-top: -65px;
 }
 .section h2 {
-  padding-top: 56px;
-  margin-top: -56px;
+  padding-top: 65px;
+  margin-top: -65px;
 }
 .section h3 {
-  padding-top: 56px;
-  margin-top: -56px;
+  padding-top: 65px;
+  margin-top: -65px;
 }
 .section h4 {
-  padding-top: 56px;
-  margin-top: -56px;
+  padding-top: 65px;
+  margin-top: -65px;
 }
 .section h5 {
-  padding-top: 56px;
-  margin-top: -56px;
+  padding-top: 65px;
+  margin-top: -65px;
 }
 .section h6 {
-  padding-top: 56px;
-  margin-top: -56px;
+  padding-top: 65px;
+  margin-top: -65px;
 }
 .dropdown-submenu {
   position: relative;
@@ -402,7 +402,7 @@ div.tocify {
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>
       </button>
-      <a class="navbar-brand" href="index.html">Time varying infection rate</a>
+      <a class="navbar-brand" href="index.html">Particle Filter - Infection Rate</a>
     </div>
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav">
@@ -418,6 +418,13 @@ div.tocify {
     <span class="fa fa fa fa-file-code-o"></span>
      
     Analysis
+  </a>
+</li>
+<li>
+  <a href="paper-figures.html">
+    <span class="fa fa fa fa-file-code-o"></span>
+     
+    Figures
   </a>
 </li>
       </ul>
@@ -445,22 +452,24 @@ div.tocify {
 
 
 
-<h1 class="title toc-ignore">About</h1>
+<h1 class="title toc-ignore">Introduction</h1>
 
 </div>
 
 
-<p><img src = "figs/diagram.png" width = 450px align = right> In this website are available the codes used to reproduce the analysis and results of the research conducted by a master student Kaique dos S. Alves under the supervision of Prof. Emerson Del Ponte, Universidade Federal de Vicosa, MG, Brazil.</p>
-<p>The main objective of the reseach was to estimate the time-varying apparent infection rate of simulated disease epidemics using a data assimilation method called Particle Filter and compare its results to an arrangement of the logistic model to obtain the between two time points.</p>
+<p><img src = "figs/diagram2.png"width = 350px align = right> This website provides a more detailed documentation of the R scripts that accompanies a manuscript prepared by Kaique dos S. Alves under the supervision of Prof. Emerson Del Ponte, during his MSc studies at the Universidade Federal de Vicosa, MG, Brazil.</p>
+<p>In this work, one variation of the Particle Filter, also known as Sequential Monte Carlo, was evaluated as alternative to estimate the time-varying apparent infection rate (sensu Vanderplank, 1962) during the course of plant disease epidemics. Our application is a solution for a typical inverse problem, or when the parameters are estimated from the measures, as opposed to the direct problem where measures are estimated from the parameters.</p>
+<p>Given that the apparent infection rate <em>r</em>(sub)y(/sub) parameter is unknown/unmeasured during actual epidemics, synthetic epidemics needed to be produced and we chose the logistic model that represents the progress of a polycyclic epidemics. These were produced under various scenarios of simulated patterns <em>r</em>(sub)y(/sub) (random, increasing, decreasing, oscillating, etc.) and two levels of noise (uncertainty) in disease intensity at each time point. We compared our results with a reference method for obtaining the rate between two time points, which is a rearrangement of the logistic model proposed initially by Vanderplank (1962). We tested the method using different (incremental) interval between two time points. A <a href="https://www.biorxiv.org/content/10.1101/625822v1">preprint version of the manuscript</a> was published in BioRxiv.</p>
 <div id="citation" class="section level2">
 <h2>Citation</h2>
+<p>The research compendium with all files for reproducing the work and generating the figures, as well as this website, are available as an OSF project and can be cited as follows:</p>
 <p>Alves, K. S., &amp; Del Ponte, E. M. (2019, May 2). Research compendium - Estimation of a time-varying apparent infection rate from plant disease progress curves: a particle filter approach. <a href="https://doi.org/10.17605/OSF.IO/7NYUJ" class="uri">https://doi.org/10.17605/OSF.IO/7NYUJ</a></p>
 </div>
 
-<div id="rmd-source-code">JSBBYm91dA0KDQo8aW1nIHNyYyA9ICJmaWdzL2RpYWdyYW0ucG5nIiB3aWR0aCA9IDQ1MHB4IGFsaWduID0gcmlnaHQ+IEluIHRoaXMgd2Vic2l0ZSBhcmUgYXZhaWxhYmxlIHRoZSBjb2RlcyB1c2VkIHRvIHJlcHJvZHVjZSB0aGUgYW5hbHlzaXMgYW5kIHJlc3VsdHMgb2YgdGhlIHJlc2VhcmNoIGNvbmR1Y3RlZCBieSBhIG1hc3RlciBzdHVkZW50IEthaXF1ZSBkb3MgUy4gQWx2ZXMgdW5kZXIgdGhlIHN1cGVydmlzaW9uIG9mIFByb2YuIEVtZXJzb24gRGVsIFBvbnRlLCBVbml2ZXJzaWRhZGUgRmVkZXJhbCBkZSBWaWNvc2EsIE1HLCBCcmF6aWwuDQoNCiAgVGhlIG1haW4gb2JqZWN0aXZlIG9mIHRoZSByZXNlYWNoIHdhcyB0byBlc3RpbWF0ZSB0aGUgdGltZS12YXJ5aW5nIGFwcGFyZW50IGluZmVjdGlvbiByYXRlIG9mIHNpbXVsYXRlZCBkaXNlYXNlIGVwaWRlbWljcyB1c2luZyBhIGRhdGEgYXNzaW1pbGF0aW9uIG1ldGhvZCBjYWxsZWQgUGFydGljbGUgRmlsdGVyIGFuZCBjb21wYXJlIGl0cyByZXN1bHRzIHRvIGFuIGFycmFuZ2VtZW50IG9mIHRoZSBsb2dpc3RpYyBtb2RlbCB0byBvYnRhaW4gdGhlIGJldHdlZW4gdHdvIHRpbWUgcG9pbnRzLiANCg0KIyMgQ2l0YXRpb24NCg0KQWx2ZXMsIEsuIFMuLCAmIERlbCBQb250ZSwgRS4gTS4gKDIwMTksIE1heSAyKS4gUmVzZWFyY2ggY29tcGVuZGl1bSAtIEVzdGltYXRpb24gb2YgYSB0aW1lLXZhcnlpbmcgYXBwYXJlbnQgaW5mZWN0aW9uIHJhdGUgZnJvbSBwbGFudCBkaXNlYXNlIHByb2dyZXNzIGN1cnZlczogYSBwYXJ0aWNsZSBmaWx0ZXIgYXBwcm9hY2guIGh0dHBzOi8vZG9pLm9yZy8xMC4xNzYwNS9PU0YuSU8vN05ZVUogIA0KDQoNCg0K</div>
+<div id="rmd-source-code">JSBJbnRyb2R1Y3Rpb24KCgo8aW1nIHNyYyA9ICJmaWdzL2RpYWdyYW0yLnBuZyJ3aWR0aCA9IDM1MHB4IGFsaWduID0gcmlnaHQ+IApUaGlzIHdlYnNpdGUgcHJvdmlkZXMgYSBtb3JlIGRldGFpbGVkIGRvY3VtZW50YXRpb24gb2YgdGhlIFIgc2NyaXB0cyB0aGF0IGFjY29tcGFuaWVzIGEgbWFudXNjcmlwdCBwcmVwYXJlZCBieSBLYWlxdWUgZG9zIFMuIEFsdmVzIHVuZGVyIHRoZSBzdXBlcnZpc2lvbiBvZiBQcm9mLiBFbWVyc29uIERlbCBQb250ZSwgZHVyaW5nIGhpcyBNU2Mgc3R1ZGllcyBhdCB0aGUgVW5pdmVyc2lkYWRlIEZlZGVyYWwgZGUgVmljb3NhLCBNRywgQnJhemlsLgoKSW4gdGhpcyB3b3JrLCBvbmUgdmFyaWF0aW9uIG9mIHRoZSBQYXJ0aWNsZSBGaWx0ZXIsIGFsc28ga25vd24gYXMgU2VxdWVudGlhbCBNb250ZSBDYXJsbywgd2FzIGV2YWx1YXRlZCBhcyBhbHRlcm5hdGl2ZSB0byBlc3RpbWF0ZSB0aGUgdGltZS12YXJ5aW5nIGFwcGFyZW50IGluZmVjdGlvbiByYXRlIChzZW5zdSBWYW5kZXJwbGFuaywgMTk2MikgZHVyaW5nIHRoZSBjb3Vyc2Ugb2YgcGxhbnQgZGlzZWFzZSBlcGlkZW1pY3MuIE91ciBhcHBsaWNhdGlvbiBpcyBhIHNvbHV0aW9uIGZvciBhIHR5cGljYWwgaW52ZXJzZSBwcm9ibGVtLCBvciB3aGVuIHRoZSBwYXJhbWV0ZXJzIGFyZSBlc3RpbWF0ZWQgZnJvbSB0aGUgbWVhc3VyZXMsIGFzIG9wcG9zZWQgdG8gdGhlIGRpcmVjdCBwcm9ibGVtIHdoZXJlIG1lYXN1cmVzIGFyZSBlc3RpbWF0ZWQgZnJvbSB0aGUgcGFyYW1ldGVycy4KCkdpdmVuIHRoYXQgdGhlIGFwcGFyZW50IGluZmVjdGlvbiByYXRlIF9yXyhzdWIpeSgvc3ViKSBwYXJhbWV0ZXIgaXMgdW5rbm93bi91bm1lYXN1cmVkIGR1cmluZyBhY3R1YWwgZXBpZGVtaWNzLCBzeW50aGV0aWMgZXBpZGVtaWNzIG5lZWRlZCB0byBiZSBwcm9kdWNlZCBhbmQgd2UgY2hvc2UgdGhlIGxvZ2lzdGljIG1vZGVsIHRoYXQgcmVwcmVzZW50cyB0aGUgcHJvZ3Jlc3Mgb2YgYSBwb2x5Y3ljbGljIGVwaWRlbWljcy4gVGhlc2Ugd2VyZSBwcm9kdWNlZCB1bmRlciB2YXJpb3VzIHNjZW5hcmlvcyBvZiBzaW11bGF0ZWQgcGF0dGVybnMgX3JfKHN1Yil5KC9zdWIpIChyYW5kb20sIGluY3JlYXNpbmcsIGRlY3JlYXNpbmcsIG9zY2lsbGF0aW5nLCBldGMuKSBhbmQgdHdvIGxldmVscyBvZiBub2lzZSAodW5jZXJ0YWludHkpIGluIGRpc2Vhc2UgaW50ZW5zaXR5IGF0IGVhY2ggdGltZSBwb2ludC4gV2UgY29tcGFyZWQgb3VyIHJlc3VsdHMgd2l0aCBhIHJlZmVyZW5jZSBtZXRob2QgZm9yIG9idGFpbmluZyB0aGUgcmF0ZSBiZXR3ZWVuIHR3byB0aW1lIHBvaW50cywgd2hpY2ggaXMgYSByZWFycmFuZ2VtZW50IG9mIHRoZSBsb2dpc3RpYyBtb2RlbCBwcm9wb3NlZCBpbml0aWFsbHkgYnkgVmFuZGVycGxhbmsgKDE5NjIpLiBXZSB0ZXN0ZWQgdGhlIG1ldGhvZCB1c2luZyBkaWZmZXJlbnQgKGluY3JlbWVudGFsKSBpbnRlcnZhbCBiZXR3ZWVuIHR3byB0aW1lIHBvaW50cy4gQSBbcHJlcHJpbnQgdmVyc2lvbiBvZiB0aGUgbWFudXNjcmlwdF0oaHR0cHM6Ly93d3cuYmlvcnhpdi5vcmcvY29udGVudC8xMC4xMTAxLzYyNTgyMnYxKSB3YXMgcHVibGlzaGVkIGluIEJpb1J4aXYuCgojIyBDaXRhdGlvbiAKClRoZSByZXNlYXJjaCBjb21wZW5kaXVtIHdpdGggYWxsIGZpbGVzIGZvciByZXByb2R1Y2luZyB0aGUgd29yayBhbmQgZ2VuZXJhdGluZyB0aGUgZmlndXJlcywgYXMgd2VsbCBhcyB0aGlzIHdlYnNpdGUsIGFyZSBhdmFpbGFibGUgYXMgYW4gT1NGIHByb2plY3QgYW5kIGNhbiBiZSBjaXRlZCBhcyBmb2xsb3dzOgoKQWx2ZXMsIEsuIFMuLCAmIERlbCBQb250ZSwgRS4gTS4gKDIwMTksIE1heSAyKS4gUmVzZWFyY2ggY29tcGVuZGl1bSAtIEVzdGltYXRpb24gb2YgYSB0aW1lLXZhcnlpbmcgYXBwYXJlbnQgaW5mZWN0aW9uIHJhdGUgZnJvbSBwbGFudCBkaXNlYXNlIHByb2dyZXNzIGN1cnZlczogYSBwYXJ0aWNsZSBmaWx0ZXIgYXBwcm9hY2guIGh0dHBzOi8vZG9pLm9yZy8xMC4xNzYwNS9PU0YuSU8vN05ZVUogIAoKCgoKCg==</div>
 
-
-Copyright 2017 Emerson Del Ponte
+<br><br>
+Copyright 2019 Alves & Del Ponte
 
 
 </div>
