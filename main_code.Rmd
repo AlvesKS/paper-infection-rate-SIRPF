@@ -1,8 +1,8 @@
 % Analysis
 
-# Packages
+## Packages and settings
 
-Load the packages needed to the analysis
+Our analyses in R depend on a few functions available in five R packages and are based on the tidyverse tools and programming style. 
 
 ```{r message=FALSE, warning=FALSE}
 library(tidyverse)
@@ -10,370 +10,498 @@ library(deSolve)
 library(ggthemes)
 library(cowplot)
 library(viridis)
+theme_set(theme_light()) # sets theme_light() as global
 ```
 
-# `ggplot2` global theme
+
+## Epidemic simulations
+
+A function was created to facilitate the production of synthetic epidemic data based on a few arguments that should be provided by the user such as epidemic duration, time interval, apparent infection rate, initial inoculum and uncertainty in the measures (standard deviation).
 
 ```{r}
-theme_set(theme_light())
+logi_fun <- function(t, y, par) {
+  
+  y <- y[1]
+  r <- par$r
+  dy = y*r*(1-y)
+  return(list(c(dy)))
+}
+
+logistic = function(N=10, dt=1, y0=0.01, r, sd=1, inf = 1){
+  
+  time <- seq(0,N, by=dt)
+  w = numeric(length(time))
+  y <- numeric(length(time))
+  y[1] = y0
+  aa <- -1
+  bb <- 1
+  for (k in 1:(length(time) - 1)) {
+    # Constant
+    if(inf == 1){r[k+1] = r[k]}
+    
+    # Increasing
+    if(inf == 2){r[k+1] = r[k]+0.0035}
+    
+    # Decreasing
+    if(inf == 3){r[k+1] = r[k]-0.0035}
+    
+    # Sinusoidal
+    if(inf == 4){r[k+1] = r[k]+ ((pi * cos((pi * (k - 1)) / 30)) / 360)}
+    
+    # Random
+    rr <- aa + (bb - aa) * runif(1)
+    if(inf == 5){r[k+1] = r[k] + 0.05 * rr}
+    
+    InitCond <- c(y[k])
+    steps = seq(time[k],time[k+1], by=dt)
+    parms <- list(r=r[k])
+    ode_logi <- ode(InitCond, steps, logi_fun, parms)  
+    y[k + 1] = last(ode_logi[,2])
+  #  y[k + 1] <- dt * (r[k] * y[k] * (1 - y[k])) + y[k]
+  }
+  
+  
+  for(i in 1:length(time)){
+    
+    w[i] = rnorm(1,y[i],sd = sd*y[i]*(1-y[i]))
+    
+    if(w[i] > 1){
+      w[i]=1
+    }
+    if(w [i] < 0){
+      w[i]=0
+    }
+  }
+  return(data.frame(time, Intensity = y, Randon_intensity = w, inf_rate = r))
+}
 ```
 
-# functions
+## PF-derived rate 
 
-The fuction for simulation of the measures and particle filter are called here. 
+A function was prepared to run the Particle Filter for estimating the _r_<sub>y</sub> parameter.
+
+
 ```{r}
-source("logistic.R")
-source("particle_filter2.R")
+
+SIR_filter = function(model, Nparti, measures, time,  guess_r, sd_meas, sd_par, sd_model, dt= 0.5){
+  realSmeas <- measures
+
+# Initial guess for the estimation. Here we set as the first value of the synthetic measures vector
+  N = length(realSmeas)
+  y <- numeric(N)
+  r <- numeric(N)
+  dt = dt
+  Xinit <- realSmeas[1]
+  S <- Xinit
+  r[1] = guess_r
+  time = time
+  # particle number
+  
+  Nparti <- Nparti
+  Nparti1 <- (1 / Nparti)
+  
+  # Variables' and model's error
+  
+  
+  Smeas <- mean(realSmeas)
+  stdmeas <- 0.25 * Smeas*(1-Smeas)
+  # Synthetic data error
+  stdmodel <- 0.005 * S
+  # Model error
+  stdmodeldif <- sd_par 
+  # "parameter"" error
+  
+  
+  # Creating the weights' vector
+  
+  wparti <- numeric(Nparti)
+  
+  
+  # Creating the others vectors for the SIR-PF algorithm
+  
+  sinti <- numeric(N)
+  sinti[1] <- r[1] 
+  Snew <- numeric(N)
+  Snew[1] <- S
+  xestsir <- numeric(N)
+  xestsir[1] <- S
+  loop1 <- c(1:(length(time) - 1))
+  loop2 <- c(1:Nparti)
+  
+  xpartires <- numeric(Nparti)
+  sintires <- numeric(Nparti)
+  wpartires <- numeric(Nparti)
+  xpartinew <- numeric(Nparti)
+  sintinew <- numeric(Nparti)
+  stdsint <- numeric(N)
+  stdsir <- numeric(N)
+  
+  aa <- -1
+  bb <- 1
+  for (k in loop1) { # loop to every time point
+    
+    for (l in loop2) { # loop to create the particles
+      
+      # Rondomic particle for "intensity" :
+      
+      Sold <- Snew[k] + rnorm(1)*stdmodel
+      
+      # Rondomic particle for "parameter":
+      
+      rr <- aa + (bb - aa) * runif(1)
+      sintold <- sinti[k] + rr * stdmodeldif 
+      
+      # Solving the direct problem for every particle
+      InitCond <- c(Sold)
+      steps <- seq(time[k], time[k + 1], by = dt)
+      parms <- list(r = sintold)
+        
+      
+         # Logistic
+         if(model == 1){
+           ode_logi <- ode(InitCond, steps, logi_fun, parms)  
+           y[k + 1] = last(ode_logi[,2])
+           }     
+         # gompertz
+         if(model == 2) {
+           ode_gompi =ode(InitCond, steps, gompi_fun, parms)  
+           y[k + 1] = last(ode_gompi[,2]) 
+         }
+       
+      if(model == 3) {
+        ode_mono =ode(InitCond, steps, mono_fun, parms)  
+        y[k + 1] = last(ode_mono[,2]) 
+      }
+      
+
+       xpartinew[l] <- y[k + 1]
+      
+       sintinew[l] <- sintold
+      
+      # Calculating the weigths
+      
+      wparti[l] <- exp(-((xpartinew[l] - realSmeas[k+1]) / stdmeas)^2)
+    }
+    
+    # Setting the weigths between 0 and 1
+    
+    wtotal <- sum(wparti)
+    
+    wpartin <- numeric(Nparti)
+    wpartin <- wparti / wtotal
+    
+    
+    # Resampling
+    
+    cresa <- numeric(Nparti)
+    uresa <- numeric(Nparti)
+    cresa[1] <- wpartin[1]
+    
+    for (i in 2:Nparti) {
+      cresa[i] <- cresa[i - 1] + wpartin[i]
+    }
+    iresa <- 1
+    uresa[1] <- runif(1) * Nparti1
+    
+    for (j in 1:Nparti) {
+      uresa[j] <- uresa[1] + Nparti1 * (j - 1)
+      
+      while (uresa[j] > cresa[iresa]) {
+        iresa <- iresa + 1
+      }
+      
+      xpartires[j] <- xpartinew[iresa]
+      sintires[j] <- sintinew[iresa]
+      wpartires[j] <- Nparti1
+    }
+    
+    Snew[k + 1] <- mean(xpartires)
+    sinti[k + 1] <- mean(sintires)
+    
+    stdsint[k + 1] <- sd(sintires)
+    xestsir[k + 1] <- mean(xpartires)
+    
+    stdsir[k + 1] <- sd(xpartires)
+    xpartiold <- xpartires
+    
+    # Error atualization
+    
+    stdmodeldif <- sd_par 
+    stdmodel <- sd_model * Snew[k + 1]
+    stdmeas <- sd_meas * realSmeas[k + 1]*(1-realSmeas[k + 1])
+  }
+  
+  lbdsiro <- sinti - 2.576 *  stdsint
+  ubdsiro <- sinti + 2.576 * stdsint
+  lbdsir <- xestsir - 2.576 * stdsir
+  ubdsir <- xestsir + 2.576 * stdsir
+  
+  final <- data.frame(time, realSmeas, xestsir, lbdsir, ubdsir, sinti, lbdsiro, ubdsiro)
+  
+  return(final)
+  }
+
 ```
 
-# Estimation for logistic model
+## Simulation of time-varying r 
 
-Here we set the initial values for simulation of each type of infection rate behavior.
+We need to set the initial values for simulating _r_<sub>y</sub> of various temporal patterns.
 
 ```{r}
-logi_setup = matrix(c("Constant", 0.2,
+logi_setup <- matrix(c(
+  "Constant", 0.2,
   "Increasing", 0.05,
   "Decreasing", 0.3,
   "Sinusoidal", 0.2,
-  "Random", 0.2),
-  nrow=5,
-  ncol=,
-  byrow = TRUE) 
-
+  "Random", 0.2
+),
+nrow = 5,
+ncol = ,
+byrow = TRUE
+)
 ```
 
-Run the particle filter for each type of infection rate, for each time interval and noise
+We will now run the Particle Filter to obtain the estimates of both the measures and the parameters for each type of infection rate, time interval and noise. For such, we will use a for-loop approach to generate a dataframe. Noise is represented by j, time interval by k and _r_<sub>y</sub> pattern by i. 
 
 ```{r warning=FALSE}
-noise = c(0.1, 0.25)
+noise <- c(0.1, 0.25)
 
-logistic_all3 = data.frame()
-for(j in 1:2){
-logistic_all2 = data.frame()
-for(k in seq(1,10, by = 2)){
+logistic_all3 <- data.frame()
+for (j in 1:2) {
+  logistic_all2 <- data.frame()
+  for (k in seq(1, 10, by = 2)) {
+    logistic_all <- data.frame()
+    for (i in 1:5) {
+      set.seed(5)
+      data <- logistic(N = 60, dt = 0.5, y0 = 0.001, r = as.numeric(logi_setup[i, 2]), sd = noise[j], inf = i)
+      data <- data %>%
+        filter(time %in% c(seq(0, 60, by = k)))
+      data_logi <- data.frame(
+        infection_type = as.factor(logi_setup[i, 1]),
+        SIR_filter(
+          model = 1,
+          guess_r = as.numeric(logi_setup[i, 2]),
+          Nparti = 1000,
+          measures = data$Randon_intensity,
+          time = data$time,
+          sd_meas = 0.25,
+          sd_par = 0.15,
+          sd_model = 0.005
+        ),
+        y = data$Intensity,
+        inf_rate = data$inf_rate
+      )
 
-logistic_all = data.frame()
-for( i in 1:5){
-  set.seed(5)
-data = logistic(N= 60, dt=0.5, y0=0.001, r=as.numeric(logi_setup[i,2]), sd = noise[j], inf = i)
-data = data %>% 
-  filter(time %in% c(seq(0,60, by = k)))
-data_logi = data.frame(infection_type = as.factor(logi_setup[i,1]),
-                   SIR_filter(model = 1,
-                   guess_r = as.numeric(logi_setup[i,2]),
-                   Nparti=1000,
-                   measures = data$Randon_intensity,
-                   time = data$time,
-                   sd_meas = 0.25,
-                   sd_par = 0.15,
-                   sd_model = 0.005),
-                   y = data$Intensity,
-                   inf_rate = data$inf_rate)  
+      logistic_all <- logistic_all %>%
+        bind_rows(data_logi)
+    }
 
-logistic_all = logistic_all %>% 
-  bind_rows(data_logi)
-}
+    logistic_all <- logistic_all %>%
+      mutate(time_interval = k)
 
-logistic_all = logistic_all %>% 
-  mutate(time_interval = k)
-  
-logistic_all2 = logistic_all2 %>% 
-  bind_rows(logistic_all) 
-}
-  logistic_all2 = logistic_all2 %>% 
+    logistic_all2 <- logistic_all2 %>%
+      bind_rows(logistic_all)
+  }
+  logistic_all2 <- logistic_all2 %>%
     mutate(noise = noise[j])
-  
- logistic_all3 =  logistic_all3 %>% 
-   bind_rows(logistic_all2) 
-   
+
+  logistic_all3 <- logistic_all3 %>%
+    bind_rows(logistic_all2)
 }
-
-
 ```
 
 
-Changing the names of the noise and time interval  
-```{r}
-logistic_all3 = logistic_all3 %>% 
-  mutate(noise2 = noise) %>% 
-  mutate(noise = case_when(noise == 0.10 ~ "\u03b1 =  0.10",
-                           noise == 0.25 ~ "\u03b1 =  0.25")) %>% 
-   mutate(time_interval2 = time_interval) %>% 
-  mutate(time_interval = case_when(time_interval == 1 ~ "\u0394t =  1",
-                                   time_interval == 3 ~ "\u0394t =  3",
-                                   time_interval == 5 ~ "\u0394t =  5",
-                                   time_interval == 7 ~ "\u0394t =  7",
-                                   time_interval == 9 ~ "\u0394t =  9"))
-```
+## Visualizing the DPCs
 
-Data
+Now that we produced the DPC data we can visualize each curve for the combination _r_<sub>y</sub> pattern, noise in the measure and time interval. But first we need to correct names of levels of factors which need special characters like alpha and delta.
 
 ```{r}
-head (logistic_all3)
-```
-## Visualization
+logistic_all3 <- logistic_all3 %>%
+  mutate(noise2 = noise) %>%
+  mutate(noise = case_when(
+    noise == 0.10 ~ "\u03b1 =  0.10",
+    noise == 0.25 ~ "\u03b1 =  0.25"
+  )) %>%
+  mutate(time_interval2 = time_interval) %>%
+  mutate(time_interval = case_when(
+    time_interval == 1 ~ "\u0394t =  1",
+    time_interval == 3 ~ "\u0394t =  3",
+    time_interval == 5 ~ "\u0394t =  5",
+    time_interval == 7 ~ "\u0394t =  7",
+    time_interval == 9 ~ "\u0394t =  9"
+  ))
 
-
-Vizualization of the Noised Disease progress curves 
-
-```{r fig.height=10, fig.width=10}
-logistic_all3 %>% 
-  ggplot()+
-  geom_line(aes(time,realSmeas, color = infection_type),
-            size = 1.2)+
-
-  facet_grid(time_interval+noise~infection_type)+
-  scale_fill_manual(values = "gray")+
-  scale_color_colorblind()+
-  labs(x = "Time",
-       y = "Severity")+
-  theme(legend.position = "none",text = element_text(size = 16),
-        strip.text = element_text(color = "black"),
-        strip.background = element_rect(fill="white"))+
-  scale_y_continuous(breaks = seq(0,1, 0.25))
-ggsave("figs/logistic_noised.png", dpi=300, height = 12, width = 8)
+head(logistic_all3)
 ```
 
 
-Vizualization of the parameter estimation
+We can then proceed to produce a panel of plots for each of the 50 DPCs. 
+
+```{r fig.height=10, fig.width=10}
+logistic_all3 %>%
+  ggplot() +
+  geom_line(aes(time, realSmeas, color = infection_type),
+    size = 1.2
+  ) +
+
+  facet_grid(time_interval + noise ~ infection_type) +
+  scale_fill_manual(values = "gray") +
+  scale_color_colorblind() +
+  labs(
+    x = "Time",
+    y = "Disease intensity"
+  ) +
+  theme(
+    legend.position = "none", text = element_text(size = 16),
+    strip.text = element_text(color = "black"),
+    strip.background = element_rect(fill = "white")
+  ) +
+  scale_y_continuous(breaks = seq(0, 1, 0.25))
+ggsave("figs/logistic_noised.png", dpi = 300, height = 12, width = 8)
+```
+
+
+Now a similar panel depicting the simulated _r_<sub>y</sub> values (solid colored line) and the respective point-estimate (and respective 95% CI)using the particle filter method.
+
 
 ```{r fig.height=10, fig.width=10}
 
-logistic_all3 %>% 
-  ggplot()+
+logistic_all3 %>%
+  ggplot() +
   geom_ribbon(aes(time, ymin = (ubdsiro), ymax = (lbdsiro), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
-  geom_line(aes(time,inf_rate, color = infection_type),
-            size = 1.2)+
-  geom_point(aes(time,sinti),
-             size = 2, alpha = 1)+
-  facet_grid(time_interval+noise~infection_type, scales = "free_y")+
-  scale_fill_manual(values = "gray")+
-  scale_color_colorblind()+
-  labs(x = "Time",
-       y = "Apparent infection rate")+
-  theme(legend.position = "none",text = element_text(size = 14),
-        strip.text = element_text(color = "black"),
-        strip.background = element_rect(fill="white"))+
-  scale_y_continuous(breaks = seq(-2,2, 0.2))
+  geom_line(aes(time, inf_rate, color = infection_type),
+    size = 1.2
+  ) +
+  geom_point(aes(time, sinti),
+    size = 2, alpha = 1
+  ) +
+  facet_grid(time_interval + noise ~ infection_type, scales = "free_y") +
+  scale_fill_manual(values = "gray") +
+  scale_color_colorblind() +
+  labs(
+    x = "Time",
+    y = "Apparent infection rate"
+  ) +
+  theme(
+    legend.position = "none", text = element_text(size = 14),
+    strip.text = element_text(color = "black"),
+    strip.background = element_rect(fill = "white")
+  ) +
+  scale_y_continuous(breaks = seq(-2, 2, 0.2))
 
-ggsave("figs/logistic_air.png", dpi=300, height = 12, width = 8)
+ggsave("figs/logistic_air.png", dpi = 300, height = 12, width = 8)
 ```
 
-Visualization of the severity estimation 
+Besides the _r_<sub>y</sub> parameter estimation, the particle filter also estimates the measures _y_ at each time point. Let's have a look at these estimates (and respective 95%CI) together with the synthetic measures (the solid lines). 
+
 
 ```{r fig.height=10, fig.width=10}
-logistic_all3 %>% 
-  ggplot()+
+logistic_all3 %>%
+  ggplot() +
   geom_ribbon(aes(time, ymin = (ubdsir), ymax = (lbdsir), fill = "Ic 99%"), alpha = 0.5, stat = "identity") +
-  geom_line(aes(time,y, color = infection_type),
-            size = 1.2)+
-  geom_point(aes(time,xestsir),
-              size = 1.5, alpha = 0.7)+
-  facet_grid(time_interval+noise~infection_type)+
-  scale_fill_manual(values = "gray")+
-  scale_color_colorblind()+
-  labs(x = "Time",
-       y = "Severity")+
-  theme(legend.position = "none",text = element_text(size = 16),
-        strip.text = element_text(color = "black"),
-        strip.background = element_rect(fill="white"))+
-  scale_y_continuous(breaks = seq(0,1, 0.25))
-ggsave("figs/logistic_curve.png", dpi=300, height = 12, width = 8)
+  geom_line(aes(time, y, color = infection_type),
+    size = 1.2
+  ) +
+  geom_point(aes(time, xestsir),
+    size = 1.5, alpha = 0.7
+  ) +
+  facet_grid(time_interval + noise ~ infection_type) +
+  scale_fill_manual(values = "gray") +
+  scale_color_colorblind() +
+  labs(
+    x = "Time",
+    y = "Disease intensity"
+  ) +
+  theme(
+    legend.position = "none", text = element_text(size = 16),
+    strip.text = element_text(color = "black"),
+    strip.background = element_rect(fill = "white")
+  ) +
+  scale_y_continuous(breaks = seq(0, 1, 0.25))
+ggsave("figs/logistic_curve.png", dpi = 300, height = 12, width = 8)
 ```
 
 
+### Estimation error
 
-## Acuracy
+The accuracy of the estimates of _r_<sub>y</sub>, or how close they were to the simulated _r_<sub>y</sub> was evaluated based on the mean squared error statistic. The code below will produce a dataframe with the respective RMSE for each epidemics.
 
 ```{r warning=FALSE}
-a = logistic_all3 %>% 
-  group_by(infection_type,time_interval2, noise) %>%
-  mutate(rmsi = (inf_rate - sinti)^2,
-         maei = abs(inf_rate - sinti)) %>% 
-  summarise(RMS = sqrt((1/(length(inf_rate)))*sum(rmsi, na.rm = T))) %>% 
+RMSE_data <- logistic_all3 %>%
+  group_by(infection_type, time_interval2, noise) %>%
+  mutate(
+    rmsi = (inf_rate - sinti)^2,
+    maei = abs(inf_rate - sinti)
+  ) %>%
+  summarise(RMS = sqrt((1 / (length(inf_rate))) * sum(rmsi, na.rm = T))) %>%
   mutate(model = "Logistic")
 
-acuracy_logi = a
+acuracy_logi <- RMSE_data
 
 head(acuracy_logi)
 ```
 
-# Calculate the Apparent infection rate
+## Logit-derived rate
 
-Using the following equation we calculated the time virying r
+The following equation is commonly used to obtain _r_<sub>y</sub> between two times, given the two measures are known. 
 
 $$ r_{i+1} = \frac {[ln(\frac {y_{i+1}}{1-y_{i+1}}) -ln(\frac {y_{i}}{1-y_{i}}) ]}{t_{i+1} - t_{i}} $$
 
+We will calculate them all for each curve the same way we did for the PF-estimated parameters and then visualize.
+
 ```{r}
-calc_r_log = logistic_all3 %>%
-  group_by(infection_type,time_interval,noise) %>% 
-  mutate(r_calc = (log(realSmeas/(1-realSmeas)) - log((lag(realSmeas,1)/(1-(lag(realSmeas,1))))))/(time - lag(time,1))) %>% 
+calc_r_log <- logistic_all3 %>%
+  group_by(infection_type, time_interval, noise) %>%
+  mutate(r_calc = (log(realSmeas / (1 - realSmeas)) - log((lag(realSmeas, 1) / (1 - (lag(realSmeas, 1)))))) / (time - lag(time, 1))) %>%
   mutate(model = "Logistic")
 
-
-calculated_r = calc_r_log
-head(calculated_r %>% 
-       ungroup() %>% 
-       select(infection_type, time,noise,time_interval2, r_calc))
+ 
+calculated_r <- calc_r_log
+head(calculated_r %>%
+  ungroup() %>%
+  select(infection_type, time, noise, time_interval2, r_calc))
 ```
-
-## Visualization
-
 
 
 ```{r fig.height=10, fig.width=10}
 
 calculated_r %>%
-  ggplot()+
-  geom_line(aes(time,inf_rate, color = infection_type),
-            size = 1.2)+
-  geom_point(aes(time,r_calc),
-             size = 2,
-             alpha = 1)+
-  facet_grid(time_interval+noise~infection_type, scales = "free_y")+
-  scale_fill_viridis()+
-  scale_color_colorblind()+
-  labs(x = "Time",
-       y = "Apparent infection rate")+
-  guides(color= guide_legend("none"))+
-  theme(text = element_text(size = 14), legend.position = "none",
-        strip.text = element_text(color = "black"),
-        strip.background = element_rect(fill="white"))
+  ggplot() +
+  geom_line(aes(time, inf_rate, color = infection_type),
+    size = 1.2
+  ) +
+  geom_point(aes(time, r_calc),
+    size = 2,
+    alpha = 1
+  ) +
+  facet_grid(time_interval + noise ~ infection_type, scales = "free_y") +
+  scale_fill_viridis() +
+  scale_color_colorblind() +
+  labs(
+    x = "Time",
+    y = "Apparent infection rate"
+  ) +
+  guides(color = guide_legend("none")) +
+  theme(
+    text = element_text(size = 14), legend.position = "none",
+    strip.text = element_text(color = "black"),
+    strip.background = element_rect(fill = "white")
+  )
 
- ggsave("figs/r_calc_logi.png", dpi=300, height = 12, width = 8)
-
+ggsave("figs/r_calc_logi.png", dpi = 300, height = 12, width = 8)
 ```
 
-## Acuracy
+### Error
 
 ```{r warning=FALSE}
-acuracy_calc = calculated_r%>% 
-  filter(r_calc != is.na(r_calc)) %>% 
-  group_by(infection_type, time_interval2,noise) %>% 
-  mutate(rmsi = (inf_rate - r_calc)^2,
-         maei = abs(inf_rate - r_calc)) %>% 
-  summarise(RMS = sqrt((1/(length(inf_rate)))*sum(rmsi, na.rm = T)))
+acuracy_calc <- calculated_r %>%
+  filter(r_calc != is.na(r_calc)) %>%
+  group_by(infection_type, time_interval2, noise) %>%
+  mutate(
+    rmsi = (inf_rate - r_calc)^2,
+    maei = abs(inf_rate - r_calc)
+  ) %>%
+  summarise(RMS = sqrt((1 / (length(inf_rate))) * sum(rmsi, na.rm = T)))
 head(acuracy_calc)
-
-```
-
-# Visualization 
-
-## RMS 
- plotting the RMS 
-
-```{r}
-ggplot()+
-  geom_line(data =acuracy_calc, aes(time_interval2, RMS, color = "Calculated", linetype = as.factor(noise)),
-            size = 1)+
-  geom_point(data =acuracy_calc, aes(time_interval2, RMS, color = "Calculated"),
-            size = 2.5)+
-  geom_line(data =acuracy_logi, aes(time_interval2, RMS, color = "Estimated", linetype = as.factor(noise)),
-            size = 1)+
-  geom_point(data =acuracy_logi, aes(time_interval2, RMS, color = "Estimated",),
-            size = 2.5)+
-  scale_color_colorblind("r")+
-  scale_x_continuous(breaks = seq(1,9,by=2))+
-  scale_linetype_manual(values = c("solid","dashed"))+
-  facet_grid(~infection_type)+
-  guides(linetype=guide_legend(keywidth = 2, keyheight = 1),
-         color=guide_legend(keywidth = 2, keyheight = 1))+
-  labs(x = "Time interval", y = "RMSE", linetype  = "Noise")+
-  theme(legend.position = "bottom",
-        text = element_text(size = 14),
-        strip.text = element_text(color = "black"),
-        strip.background = element_rect(fill="white"))
-
-ggsave("figs/RMS.png", dpi=300, height = 5, width = 11)
-```
-
-## Disease progress curves
-
-```{r fig.height=9, fig.width=6}
-plot_grid(
-plot_grid(logistic_all3 %>%
-  filter(time_interval2==3 ) %>% 
-  ggplot()+
-    geom_point(aes(time,y, color = infection_type),size = 2.5, alpha = 1)+
-    geom_line(aes(time,y, color = infection_type),size = 1, alpha = .6)+
-    scale_fill_manual(values = "gray")+
-    scale_color_colorblind()+
-    labs(x = "Time",
-         y = "Disease intensity", color = "AIR")+
-    theme(text = element_text(size = 16),legend.position = "none", axis.title.x = element_text(color ="white"))+
-    scale_y_continuous(breaks = seq(0,1, 0.25)),
-
-logistic_all3 %>%
-  filter(time_interval2==3 & noise2 == 0.1 ) %>% 
-  ggplot()+
-  geom_point(aes(time,realSmeas, color = infection_type),size = 2.5, alpha = 1)+
-    geom_line(aes(time,realSmeas, color = infection_type),size = 1, alpha = .6)+
-    scale_fill_manual(values = "gray")+
-    scale_color_colorblind()+
-    labs(x = "Time",
-         y = "Disease intensity", color = "AIR")+
-    theme(text = element_text(size = 16),legend.position = "none", axis.title.x = element_text(color ="white"))+
-    scale_y_continuous(breaks = seq(0,1, 0.25)),
-
-logistic_all3 %>%
-  filter(time_interval2==3 & noise2 == 0.25) %>% 
-  ggplot()+
-    geom_point(aes(time,realSmeas, color = infection_type),size = 2.5, alpha = 1)+
-  geom_line(aes(time,realSmeas, color = infection_type),size = 1, alpha = .6)+
-
-    scale_fill_manual(values = "gray")+
-    scale_color_colorblind()+
-    labs(x = "Time",
-         y = "Disease intensity", color = "")+
-    theme(text = element_text(size = 16),legend.position = "none")+
-    scale_y_continuous(breaks = seq(0,1, 0.25)),
-nrow = 3, rel_heights =  c(0.83,0.83,1), labels = "AUTO")
-
-,
-a = get_legend(logistic_all3 %>%
-  filter(time_interval2==3 & noise2 == 0.25) %>% 
-  ggplot()+
-    geom_point(aes(time,realSmeas, color = infection_type),size = 2.5, alpha = 1)+
-  geom_line(aes(time,realSmeas, color = infection_type),size = 1, alpha = .6)+
-
-    scale_fill_manual(values = "gray")+
-    scale_color_colorblind()+
-    labs(x = "Time",
-         y = "Severity", color = "")+
-    theme(text = element_text(size = 16),legend.position = "right")+
-    scale_y_continuous(breaks = seq(0,1, 0.25))), rel_widths = c(1,0.4))
-
-ggsave("figs/DPCs.png", dpi=300, height = 9, width =7)
-```
-
-## Estimates for increasing parameter
-
-
-```{r fig.height=8, fig.width=7}
-# plot_grid(
-  logistic_all3 %>%
-    mutate(Approach = "Estimated") %>% 
-    bind_rows(calculated_r%>% 
-                mutate(Approach = "Calculated",sinti = r_calc)) %>% 
-    filter(infection_type == "Increasing") %>% 
-    filter(time_interval2 %in% c(1,5)) %>% 
-    ggplot()+
-    geom_ribbon(aes(time, ymin = ubdsiro, ymax = lbdsiro,alpha = Approach, fill = "99% CI"), stat = "identity")+
-    geom_line(aes(time, inf_rate, color = time_interval),size = 1.5)+
-    guides(alpha = guide_legend("none"))+
-    geom_point(aes(time, sinti))+
-  # facet_wrap(noise+time_interval~Approach)+
-    facet_grid(noise+time_interval~Approach)+
-    scale_alpha_discrete(range = c(0, 0.5))+
-    scale_color_colorblind()+
-    scale_fill_manual(values = "gray")+
-  labs(x = "Time", y = "Apparent infection rate", fill = "", color= "")+
-  theme(legend.position = "bottom", text = element_text(size = 16),
-        strip.text = element_text(color = "black"),
-        strip.background = element_rect(fill="white"))
-  
-ggsave("figs/Fig5.png", dpi=300, height = 8, width = 6)
-
-
 ```
 
